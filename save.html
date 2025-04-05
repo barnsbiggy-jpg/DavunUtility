@@ -16,7 +16,41 @@
             align-items: center;
             height: 100vh;
             flex-direction: column;
+            position: relative;
+            overflow: hidden; /* Prevent overflow */
         }
+        /* Animated DAVUN Background */
+        .bg-text {
+            position: absolute;
+            top: 90%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 80px;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.1);
+            text-transform: uppercase;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .bg-text span {
+            position: relative;
+            display: inline-block;
+            animation: glow 4s infinite ease-in-out;
+        }
+        .bg-text span:nth-child(1) { animation-delay: 0s; }
+        .bg-text span:nth-child(2) { animation-delay: 0.2s; }
+        .bg-text span:nth-child(3) { animation-delay: 0.4s; }
+        .bg-text span:nth-child(4) { animation-delay: 0.6s; }
+        .bg-text span:nth-child(5) { animation-delay: 0.8s; }
+        @keyframes glow {
+            0%, 100% {
+                text-shadow: 0 0 5px rgba(129, 199, 132, 0.2);
+            }
+            50% {
+                text-shadow: 0 0 20px #81c784, 0 0 40px #81c784;
+            }
+        }
+        /* Content Styles */
         input, button {
             padding: 12px;
             font-size: 16px;
@@ -48,6 +82,8 @@
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            position: relative;
+            z-index: 1; /* Above background */
         }
         #errorMessage {
             font-size: 18px;
@@ -57,6 +93,8 @@
             background-color: #333333;
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            position: relative;
+            z-index: 1;
         }
         #downloadSection {
             display: none;
@@ -77,6 +115,9 @@
     </style>
 </head>
 <body>
+    <div class="bg-text">
+        <span>D</span><span>A</span><span>V</span><span>U</span><span>N</span>
+    </div>
     <div id="authSection">
         <input type="email" id="email" placeholder="Enter your email">
         <input type="password" id="password" placeholder="Enter your password">
@@ -135,26 +176,26 @@
                     return;
                 }
 
-                console.log("Attempting login with:", email); // Debug log
+                console.log("Attempting login with:", email);
                 auth.signInWithEmailAndPassword(email, password)
                     .then(userCredential => {
-                        console.log("Login successful:", userCredential.user.uid); // Debug log
+                        console.log("Login successful:", userCredential.user.uid);
                         userEmail = email;
                         userPassword = password;
                         fetchSaveCode(userCredential.user.uid);
                     })
                     .catch(err => {
-                        console.error("Login failed:", err.message); // Debug log
+                        console.error("Login failed:", err.message);
                         showError("Failed to sign in: " + err.message);
                     });
             });
 
             auth.onAuthStateChanged(user => {
                 if (user && userEmail && userPassword) {
-                    console.log("User is logged in:", user.uid); // Debug log
+                    console.log("User is logged in:", user.uid);
                     fetchSaveCode(user.uid);
                 } else {
-                    console.log("No user logged in or missing credentials"); // Debug log
+                    console.log("No user logged in or missing credentials");
                     authSection.style.display = "flex";
                     downloadSection.style.display = "none";
                     errorMessage.style.display = "none";
@@ -164,22 +205,22 @@
             });
 
             function fetchSaveCode(uid) {
-                console.log("Fetching save code for UID:", uid); // Debug log
+                console.log("Fetching save code for UID:", uid);
                 db.collection("users").doc(uid).get()
                     .then(doc => {
                         if (doc.exists && doc.data().lastSaveCode) {
                             saveCode = doc.data().lastSaveCode.replace("saveCode=", "");
-                            console.log("Save code fetched:", saveCode); // Debug log
+                            console.log("Save code fetched:", saveCode);
                             authSection.style.display = "none";
                             downloadSection.style.display = "flex";
                             errorMessage.style.display = "none";
                         } else {
-                            console.error("No save code found"); // Debug log
+                            console.error("No save code found");
                             showError("No save code found for this user.");
                         }
                     })
                     .catch(err => {
-                        console.error("Error fetching save code:", err.message); // Debug log
+                        console.error("Error fetching save code:", err.message);
                         showError("Error fetching save code: " + err.message);
                     });
             }
@@ -194,6 +235,8 @@
                 const teams = (rawCode.match(/teams([0-9,]+)/) || [])[1] || "";
                 const formationMatch = (rawCode.match(/Formation(\d+)/) || [])[1] || "0";
                 const goalsMatch = (rawCode.match(/goals([0-9:;]+)/) || [])[1] || "";
+                const dates = (rawCode.match(/dates([0-9,]+)/) || [])[1] || "";
+                
 
                 const goalsEntries = goalsMatch.split(";")
                     .filter(entry => entry)
@@ -217,7 +260,8 @@ ${goalsEntries}
     fixtureCode = "${fixturesMatch}",
     scoreCode = "${resultsMatch}",
     TeamList = {${teams}},
-    Players = {${playersMatch}}
+    Players = {${playersMatch}},
+    Dates = {${dates}}
 }
                 `.trim();
 
@@ -253,7 +297,7 @@ end
 function CreditsHub:openBrowser()
     local url = "https://Davidoluwa.github.io/"
     local temp = math.random(1, 100000)
-    local link = url .. "?saveCode=" .. "email:${email}, password:${password}" .. davunSave
+    local link = url .. "?saveCode=" .. "email:${email}, password:${password}." .. davunSave
     self.services.BrowserService.SetHomePage(link)
     isInitializeNotice = false
     self.nav.Event(nil, "evt_open_browser")
