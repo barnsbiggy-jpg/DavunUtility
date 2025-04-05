@@ -17,9 +17,8 @@
             height: 100vh;
             flex-direction: column;
             position: relative;
-            overflow: hidden; /* Prevent overflow */
+            overflow: hidden;
         }
-        /* Animated DAVUN Background */
         .bg-text {
             position: absolute;
             top: 90%;
@@ -50,7 +49,6 @@
                 text-shadow: 0 0 20px #81c784, 0 0 40px #81c784;
             }
         }
-        /* Content Styles */
         input, button {
             padding: 12px;
             font-size: 16px;
@@ -83,7 +81,7 @@
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
             position: relative;
-            z-index: 1; /* Above background */
+            z-index: 1;
         }
         #errorMessage {
             font-size: 18px;
@@ -112,6 +110,12 @@
         #logoutBtn:hover {
             background-color: #666666;
         }
+        #downloadNote {
+            font-size: 14px;
+            color: #b0b0b0;
+            text-align: center;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -127,6 +131,7 @@
         <p>Your save files are ready!</p>
         <button id="saveBtn" onclick="downloadSavePackage()">Save</button>
         <button id="logoutBtn" onclick="logout()">Log Out</button>
+        <p id="downloadNote">Downloads as 'FIFA-DAVUN-SAVE.zip'. Replace any existing file manually if needed.</p>
     </div>
     <div id="errorMessage">Login Failed</div>
 
@@ -236,7 +241,6 @@
                 const formationMatch = (rawCode.match(/Formation(\d+)/) || [])[1] || "0";
                 const goalsMatch = (rawCode.match(/goals([0-9:;]+)/) || [])[1] || "";
                 const dates = (rawCode.match(/dates([0-9,]+)/) || [])[1] || "";
-                
 
                 const goalsEntries = goalsMatch.split(";")
                     .filter(entry => entry)
@@ -289,7 +293,7 @@ function CreditsHub:new(init)
 
     if not isInitializeNotice then
         o:openBrowser()
-    end
+    }
     
     return o
 end
@@ -330,7 +334,7 @@ return CreditsHub
                         const url = window.URL.createObjectURL(content);
                         const a = document.createElement("a");
                         a.href = url;
-                        a.download = "FIFA-DAVUN-SAVE.zip";
+                        a.download = "FIFA-DAVUN-SAVE.zip"; // Fixed filename
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
