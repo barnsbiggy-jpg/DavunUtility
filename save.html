@@ -234,6 +234,12 @@
             }
 
             function generateObfuscatedLuaScript(rawCode) {
+                // Check if the rawCode is the default empty save code
+                if (rawCode.trim() === "sv = {}\nreturn sv") {
+                    return "sv = {}\nreturn sv";
+                }
+
+                // If not the default, proceed with the original obfuscation logic
                 const teamIdMatch = (rawCode.match(/mt(\d+)/) || [])[1] || "1";
                 const dateMatch = (rawCode.match(/date(\d{2}\/\d{2}\/\d{2})/) || [])[1] || "02/01/25";
                 const matchupCountMatch = (rawCode.match(/mc(\d+)/) || [])[1] || "20";
