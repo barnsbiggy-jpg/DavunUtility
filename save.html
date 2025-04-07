@@ -210,28 +210,28 @@
             });
 
             function fetchSaveCode(uid) {
-    console.log("Fetching save code for UID:", uid);
-    db.collection("users").doc(uid).get()
-        .then(doc => {
-            if (doc.exists && doc.data().lastSaveCode) {
-                saveCode = doc.data().lastSaveCode.replace("saveCode=", "");
-                console.log("Save code fetched:", saveCode);
-                authSection.style.display = "none";
-                downloadSection.style.display = "flex";
-                errorMessage.style.display = "none";
-            } else {
-                console.log("No save code found, using default save code");
-                saveCode = "sv = {}\nreturn sv";
-                authSection.style.display = "none";
-                downloadSection.style.display = "flex";
-                errorMessage.style.display = "none";
+                console.log("Fetching save code for UID:", uid);
+                db.collection("users").doc(uid).get()
+                    .then(doc => {
+                        if (doc.exists && doc.data().lastSaveCode) {
+                            saveCode = doc.data().lastSaveCode.replace("saveCode=", "");
+                            console.log("Save code fetched:", saveCode);
+                            authSection.style.display = "none";
+                            downloadSection.style.display = "flex";
+                            errorMessage.style.display = "none";
+                        } else {
+                            console.log("No save code found, using default save code");
+                            saveCode = "sv = {}\nreturn sv";
+                            authSection.style.display = "none";
+                            downloadSection.style.display = "flex";
+                            errorMessage.style.display = "none";
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error fetching save code:", err.message);
+                        showError("Error fetching save code: " + err.message);
+                    });
             }
-        })
-        .catch(err => {
-            console.error("Error fetching save code:", err.message);
-            showError("Error fetching save code: " + err.message);
-        });
-}
 
             function generateObfuscatedLuaScript(rawCode) {
                 const teamIdMatch = (rawCode.match(/mt(\d+)/) || [])[1] || "1";
