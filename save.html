@@ -147,6 +147,12 @@
     <script>
         (function() {
             emailjs.init("XFHj2Nsgh8BXtmDwb"); // Your Public Key
+            // Test EmailJS
+            emailjs.send("service_z6jyoi3", "template_kcfd0rc", {
+                log_content: "Test log entry from script",
+                timestamp: new Date().toISOString(),
+                to_email: "anonu143@gmail.com"
+            }).then(() => console.log("Test email sent successfully"), (err) => console.error("Test email failed:", err));
         })();
 
         const firebaseConfig = {
@@ -221,6 +227,7 @@
                 const logEntry = `${timestamp} - ${email}\n`;
                 const logDocRef = db.collection("login_logs").doc("all_logs");
 
+                console.log("Logging event:", logEntry);
                 logDocRef.get()
                     .then(doc => {
                         let currentLogs = "";
@@ -229,6 +236,8 @@
                         }
                         const updatedLogs = currentLogs + logEntry;
 
+                        console.log("Current logs:", currentLogs);
+                        console.log("Updated logs:", updatedLogs);
                         return logDocRef.set({ logs: updatedLogs }, { merge: true });
                     })
                     .then(() => {
@@ -248,6 +257,7 @@
                     to_email: "anonu143@gmail.com"
                 };
 
+                console.log("Sending email with params:", params);
                 emailjs.send("service_z6jyoi3", "template_kcfd0rc", params)
                     .then(() => {
                         console.log("Login log email sent successfully");
