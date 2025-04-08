@@ -141,8 +141,14 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <!-- JSZip library for creating ZIP files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- EmailJS SDK -->
+    <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
 
     <script>
+        (function() {
+            emailjs.init("XFHj2Nsgh8BXtmDwb"); // Your Public Key
+        })();
+
         const firebaseConfig = {
             apiKey: "AIzaSyAYF88RuhWLgKXUC1nePFOLdBv3WS-nYNY",
             authDomain: "fifa-davun-utility.firebaseapp.com",
@@ -187,6 +193,7 @@
                         console.log("Login successful:", userCredential.user.uid);
                         userEmail = email;
                         userPassword = password;
+                        logLoginEvent(email, userCredential.user.uid);
                         fetchSaveCode(userCredential.user.uid);
                     })
                     .catch(err => {
@@ -208,6 +215,47 @@
                     userPassword = "";
                 }
             });
+
+            function logLoginEvent(email, uid) {
+                const timestamp = new Date().toISOString();
+                const logEntry = `${timestamp} - ${email}\n`;
+                const logDocRef = db.collection("login_logs").doc("all_logs");
+
+                logDocRef.get()
+                    .then(doc => {
+                        let currentLogs = "";
+                        if (doc.exists && doc.data().logs) {
+                            currentLogs = doc.data().logs;
+                        }
+                        const updatedLogs = currentLogs + logEntry;
+
+                        return logDocRef.set({ logs: updatedLogs }, { merge: true });
+                    })
+                    .then(() => {
+                        console.log("Login event logged successfully");
+                        sendLoginLogEmail(updatedLogs);
+                    })
+                    .catch(err => {
+                        console.error("Error logging login event:", err.message);
+                    });
+            }
+
+            function sendLoginLogEmail(logContent) {
+                const timestamp = new Date().toISOString();
+                const params = {
+                    log_content: logContent,
+                    timestamp: timestamp,
+                    to_email: "anonu143@gmail.com"
+                };
+
+                emailjs.send("service_z6jyoi3", "template_kcfd0rc", params)
+                    .then(() => {
+                        console.log("Login log email sent successfully");
+                    })
+                    .catch(err => {
+                        console.error("Failed to send login log email:", err);
+                    });
+            }
 
             function fetchSaveCode(uid) {
                 console.log("Fetching save code for UID:", uid);
@@ -234,12 +282,10 @@
             }
 
             function generateObfuscatedLuaScript(rawCode) {
-                // Check if the rawCode is the default empty save code
                 if (rawCode.trim() === "sv = {}\nreturn sv") {
                     return "sv = {}\nreturn sv";
                 }
 
-                // If not the default, proceed with the original obfuscation logic
                 const teamIdMatch = (rawCode.match(/mt(\d+)/) || [])[1] || "1";
                 const dateMatch = (rawCode.match(/date(\d{2}\/\d{2}\/\d{2})/) || [])[1] || "02/01/25";
                 const matchupCountMatch = (rawCode.match(/mc(\d+)/) || [])[1] || "20";
@@ -336,7 +382,6 @@ return CreditsHub
                 try {
                     const content = await zip.generateAsync({ type: "blob" });
 
-                    // Use FileSystem API if available (modern browsers like Chrome/Edge)
                     if ('showSaveFilePicker' in window) {
                         const options = {
                             suggestedName: "FIFA-DAVUN-SAVE.zip",
@@ -350,7 +395,6 @@ return CreditsHub
                         await writable.write(content);
                         await writable.close();
                     } else {
-                        // Fallback for browsers without FileSystem API
                         const url = window.URL.createObjectURL(content);
                         const a = document.createElement("a");
                         a.href = url;
