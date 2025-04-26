@@ -19,7 +19,7 @@
             position: relative;
             overflow: hidden;
         }
-        .DAVUNPES {
+        .DRVUNPES {
             position: absolute;
             top: 90%;
             left: 50%;
@@ -31,16 +31,16 @@
             z-index: 0;
             pointer-events: none;
         }
-        .DAVUNPES span {
+        .DRVUNPES span {
             position: relative;
             display: inline-block;
             animation: glow 4s infinite ease-in-out;
         }
-        .DAVUNPES span:nth-child(1) { animation-delay: 0s; }
-        .DAVUNPES span:nth-child(2) { animation-delay: 0.2s; }
-        .DAVUNPES span:nth-child(3) { animation-delay: 0.4s; }
-        .DAVUNPES span:nth-child(4) { animation-delay: 0.6s; }
-        .DAVUNPES span:nth-child(5) { animation-delay: 0.8s; }
+        .DRVUNPES span:nth-child(1) { animation-delay: 0s; }
+        .DRVUNPES span:nth-child(2) { animation-delay: 0.2s; }
+        .DRVUNPES span:nth-child(3) { animation-delay: 0.4s; }
+        .DRVUNPES span:nth-child(4) { animation-delay: 0.6s; }
+        .DRVUNPES span:nth-child(5) { animation-delay: 0.8s; }
         @keyframes glow {
             0%, 100% {
                 text-shadow: 0 0 5px rgba(129, 199, 132, 0.2);
@@ -119,7 +119,7 @@
     </style>
 </head>
 <body>
-    <div class="DAVUNPES">
+    <div class="DRVUNPES">
         <span>D</span><span>A</span><span>V</span><span>U</span><span>N</span>
     </div>
     <div id="authSection">
@@ -307,9 +307,7 @@
                 const teamsMatch = (rawCode.match(/teams([0-9,]+)(?=dates|$)/) || [])[1] || "";
                 const datesMatch = (rawCode.match(/dates([0-9,]+)(?=funds|$)/) || [])[1] || "";
                 const fundsMatch = (rawCode.match(/funds(\d+)/) || [])[1] || "0";
-                const transfersMatch = (rawCode.match(/transfers((?:\d+:\d+;)*\d+:\d+|none)(?=suspensions|$)/) || [])[1] || "none";
-                const suspensionsMatch = (rawCode.match(/suspensions((?:\d+:\d+;)*\d+:\d+|none)(?=injuries|$)/) || [])[1] || "none";
-                const injuriesMatch = (rawCode.match(/injuries((?:\d+:\d+;)*\d+:\d+|none)(?=$)/) || [])[1] || "none";
+                const transfersMatch = (rawCode.match(/transfers(.+?)(?=$)/) || [])[1] || "none";
 
                 // Parse sheets data
                 let sheetsEntries = [];
@@ -337,32 +335,7 @@
                     const transfers = transfersMatch.split(";").filter(t => t);
                     transferEntries = transfers.map((transfer, index) => {
                         const [player, team] = transfer.split(":").map(part => part.trim());
-                        // Validate that player and team are numbers
-                        if (!/^\d+$/.test(player) || !/^\d+$/.test(team)) {
-                            console.warn(`Invalid transfer entry skipped: ${transfer}`);
-                            return null;
-                        }
                         return `    [${index + 1}] = { Player = ${player}, Team = ${team} }`;
-                    }).filter(entry => entry); // Remove invalid entries
-                }
-
-                // Parse suspensions
-                let suspensionEntries = [];
-                if (suspensionsMatch !== "none") {
-                    const suspensions = suspensionsMatch.split(";").filter(s => s);
-                    suspensionEntries = suspensions.map((suspension, index) => {
-                        const [playerIndex, gamesSuspended] = suspension.split(":").map(part => part.trim());
-                        return `    [${index + 1}] = { PlayerIndex = ${playerIndex}, GamesSuspended = ${gamesSuspended} }`;
-                    });
-                }
-
-                // Parse injuries
-                let injuryEntries = [];
-                if (injuriesMatch !== "none") {
-                    const injuries = injuriesMatch.split(";").filter(i => i);
-                    injuryEntries = injuries.map((injury, index) => {
-                        const [playerIndex, recoveryDate] = injury.split(":").map(part => part.trim());
-                        return `    [${index + 1}] = { PlayerIndex = ${playerIndex}, RecoveryDate = ${recoveryDate} }`;
                     });
                 }
 
@@ -389,12 +362,6 @@ ${sheetsEntries.join(",\n")}
     transferHistory = {
 ${transferEntries.join(",\n")}
     }` : ""
-    },
-    suspensions = {
-${suspensionEntries.join(",\n")}
-    },
-    injuries = {
-${injuryEntries.join(",\n")}
     }
 }
                 `.trim();
