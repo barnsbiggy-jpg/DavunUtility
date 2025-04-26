@@ -307,7 +307,9 @@
                 const teamsMatch = (rawCode.match(/teams([0-9,]+)(?=dates|$)/) || [])[1] || "";
                 const datesMatch = (rawCode.match(/dates([0-9,]+)(?=funds|$)/) || [])[1] || "";
                 const fundsMatch = (rawCode.match(/funds(\d+)/) || [])[1] || "0";
-                const transfersMatch = (rawCode.match(/transfers(.+?)(?=$)/) || [])[1] || "none";
+                const transfersMatch = (rawCode.match(/transfers(.+?)(?=suspensions|$)/) || [])[1] || "none";
+                const suspensionsMatch = (rawCode.match(/suspensions(.+?)(?=injuries|$)/) || [])[1] || "none";
+                const injuriesMatch = (rawCode.match(/injuries(.+?)(?=$)/) || [])[1] || "none";
 
                 // Parse sheets data
                 let sheetsEntries = [];
@@ -339,6 +341,26 @@
                     });
                 }
 
+                // Parse suspensions
+                let suspensionsEntries = [];
+                if (suspensionsMatch !== "none") {
+                    const suspensions = suspensionsMatch.split(";").filter(s => s);
+                    suspensionsEntries = suspensions.map(suspension => {
+                        const [playerName, count] = suspension.split(":").map(part => part.trim());
+                        return `    ["${playerName}"] = ${count}`;
+                    });
+                }
+
+                // Parse injuries
+                let injuriesEntries = [];
+                if (injuriesMatch !== "none") {
+                    const injuries = injuriesMatch.split(";").filter(i => i);
+                    injuriesEntries = injuries.map(injury => {
+                        const [playerName, date] = injury.split(":").map(part => part.trim());
+                        return `    ["${playerName}"] = "${date}"`;
+                    });
+                }
+
                 // Generate the Lua script
                 const originalScript = `
 -- DAVUNPES SAVE --
@@ -358,9 +380,21 @@ ${goalsEntries}
 ${sheetsEntries.join(",\n")}
     },
     Dates = {${datesMatch}}${
-        transfersMatch !== "none" ? `,
+        transfersMatch !== "none" || suspensionsMatch !== "none" || injuriesMatch !== "none" ? "," : ""
+    }${
+        transfersMatch !== "none" ? `
     transferHistory = {
 ${transferEntries.join(",\n")}
+    }` : ""
+    }${
+        suspensionsMatch !== "none" ? `,
+    isSuspended = {
+${suspensionsEntries.join(",\n")}
+    }` : ""
+    }${
+        injuriesMatch !== "none" ? `,
+    injuryRecoveryDate = {
+${injuriesEntries.join(",\n")}
     }` : ""
     }
 }
