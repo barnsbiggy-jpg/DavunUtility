@@ -307,9 +307,9 @@
                 const teamsMatch = (rawCode.match(/teams([0-9,]+)(?=dates|$)/) || [])[1] || "";
                 const datesMatch = (rawCode.match(/dates([0-9,]+)(?=funds|$)/) || [])[1] || "";
                 const fundsMatch = (rawCode.match(/funds(\d+)/) || [])[1] || "0";
-                const transfersMatch = (rawCode.match(/transfers(.+?)(?=suspensions|$)/) || [])[1] || "none";
-                const suspensionsMatch = (rawCode.match(/suspensions(.+?)(?=injuries|$)/) || [])[1] || "none";
-                const injuriesMatch = (rawCode.match(/injuries(.+?)(?=$)/) || [])[1] || "none";
+                const transfersMatch = (rawCode.match(/transfers((?:\d+:\d+;)*\d+:\d+|none)(?=suspensions|$)/) || [])[1] || "none";
+                const suspensionsMatch = (rawCode.match(/suspensions((?:\d+:\d+;)*\d+:\d+|none)(?=injuries|$)/) || [])[1] || "none";
+                const injuriesMatch = (rawCode.match(/injuries((?:\d+:\d+;)*\d+:\d+|none)(?=$)/) || [])[1] || "none";
 
                 // Parse sheets data
                 let sheetsEntries = [];
@@ -337,8 +337,13 @@
                     const transfers = transfersMatch.split(";").filter(t => t);
                     transferEntries = transfers.map((transfer, index) => {
                         const [player, team] = transfer.split(":").map(part => part.trim());
+                        // Validate that player and team are numbers
+                        if (!/^\d+$/.test(player) || !/^\d+$/.test(team)) {
+                            console.warn(`Invalid transfer entry skipped: ${transfer}`);
+                            return null;
+                        }
                         return `    [${index + 1}] = { Player = ${player}, Team = ${team} }`;
-                    });
+                    }).filter(entry => entry); // Remove invalid entries
                 }
 
                 // Parse suspensions
