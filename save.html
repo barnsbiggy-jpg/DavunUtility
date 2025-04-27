@@ -32,7 +32,7 @@
             pointer-events: none;
         }
         .DRVUNPES span {
-            position: relative;
+            position(groups, relative;
             display: inline-block;
             animation: glow 4s infinite ease-in-out;
         }
@@ -96,7 +96,7 @@
         }
         #downloadSection {
             display: none;
-        }
+ aga        }
         #saveBtn {
             background-color: #ffffff;
             color: #333333;
@@ -307,8 +307,8 @@
                 const teamsMatch = (rawCode.match(/teams([0-9,]+)(?=dates|$)/) || [])[1] || "";
                 const datesMatch = (rawCode.match(/dates([0-9,]+)(?=funds|$)/) || [])[1] || "";
                 const fundsMatch = (rawCode.match(/funds(\d+)/) || [])[1] || "0";
-                const transfersMatch = (rawCode.match(/transfers(.+?)(?=suspensions|$)/) || [])[1] || "none";
-                const suspensionsMatch = (rawCode.match(/suspensions(.+?)(?=injuries|$)/) || [])[1] || "none";
+                const transfersMatch = (rawCode.match(/transfers(.+?)(?=injuries|$)/) || [])[1] || "none";
+                // NEW: Extract injuries field, default to "none" if not present
                 const injuriesMatch = (rawCode.match(/injuries(.+?)(?=$)/) || [])[1] || "none";
 
                 // Parse sheets data
@@ -341,23 +341,15 @@
                     });
                 }
 
-                // Parse suspensions
-                let suspensionsEntries = [];
-                if (suspensionsMatch !== "none") {
-                    const suspensions = suspensionsMatch.split(";").filter(s => s);
-                    suspensionsEntries = suspensions.map(suspension => {
-                        const [playerName, count] = suspension.split(":").map(part => part.trim());
-                        return `    ["${playerName}"] = ${count}`;
-                    });
-                }
-
-                // Parse injuries
-                let injuriesEntries = [];
+                // NEW: Parse injury recovery dates
+                let injuryEntries = [];
                 if (injuriesMatch !== "none") {
                     const injuries = injuriesMatch.split(";").filter(i => i);
-                    injuriesEntries = injuries.map(injury => {
-                        const [playerName, date] = injury.split(":").map(part => part.trim());
-                        return `    ["${playerName}"] = "${date}"`;
+                    injuryEntries = injuries.map(injury => {
+                        const [playerName, recoveryDate] = injury.split(":").map(part => part.trim());
+                        // Ensure playerName and recoveryDate are valid; escape quotes in playerName if needed
+                        const escapedPlayerName = playerName.replace(/"/g, '\\"');
+                        return `    ["${escapedPlayerName}"] = "${recoveryDate}"`;
                     });
                 }
 
@@ -380,21 +372,14 @@ ${goalsEntries}
 ${sheetsEntries.join(",\n")}
     },
     Dates = {${datesMatch}}${
-        transfersMatch !== "none" || suspensionsMatch !== "none" || injuriesMatch !== "none" ? "," : ""
-    }${
-        transfersMatch !== "none" ? `
+        transfersMatch !== "none" ? `,
     transferHistory = {
 ${transferEntries.join(",\n")}
     }` : ""
     }${
-        suspensionsMatch !== "none" ? `,
-    isSuspended = {
-${suspensionsEntries.join(",\n")}
-    }` : ""
-    }${
         injuriesMatch !== "none" ? `,
-    injuryRecoveryDate = {
-${injuriesEntries.join(",\n")}
+    injuryRecoveryDates = {
+${injuryEntries.join(",\n")}
     }` : ""
     }
 }
