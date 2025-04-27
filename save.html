@@ -32,7 +32,7 @@
             pointer-events: none;
         }
         .DRVUNPES span {
-            position(groups, relative;
+            position: relative;
             display: inline-block;
             animation: glow 4s infinite ease-in-out;
         }
@@ -96,7 +96,7 @@
         }
         #downloadSection {
             display: none;
- aga        }
+        }
         #saveBtn {
             background-color: #ffffff;
             color: #333333;
@@ -292,68 +292,68 @@
             }
 
             function generateObfuscatedLuaScript(rawCode) {
-    if (rawCode.trim() === "sv = {}\nreturn sv") {
-        return "sv = {}\nreturn sv";
-    }
+                if (rawCode.trim() === "sv = {}\nreturn sv") {
+                    return "sv = {}\nreturn sv";
+                }
 
-    // Extract fields from saveCode
-    const teamIdMatch = (rawCode.match(/mt(\d+)/) || [])[1] || "1";
-    const dateMatch = (rawCode.match(/date(\d{2}\/\d{2}\/\d{2})/) || [])[1] || "02/01/25";
-    const matchupCountMatch = (rawCode.match(/mc(\d+)/) || [])[1] || "20";
-    const fixturesMatch = (rawCode.match(/fixtures([a-zA-Z]+)(?=results|$)/) || [])[1] || "";
-    const resultsMatch = (rawCode.match(/results([a-zA-Z*]+?)(?=sheets|$)/) || [])[1] || "";
-    const sheetsMatch = (rawCode.match(/sheets(.+?)(?=goals|$)/) || [])[1] || "none";
-    const goalsMatch = (rawCode.match(/goals([0-9:;]+)(?=teams|$)/) || [])[1] || "";
-    const teamsMatch = (rawCode.match(/teams([0-9,]+)(?=dates|$)/) || [])[1] || "";
-    const datesMatch = (rawCode.match(/dates([0-9,]+)(?=funds|$)/) || [])[1] || "";
-    const fundsMatch = (rawCode.match(/funds(\d+)/) || [])[1] || "0";
-    // FIXED: Improved regex to handle 'none' and stop before 'injuries'
-    const transfersMatch = (rawCode.match(/transfers([^injuries]+?)(?=injuries|$)/) || [])[1] || "none";
-    const injuriesMatch = (rawCode.match(/injuries(.+?)(?=$)/) || [])[1] || "none";
+                // Extract fields from saveCode
+                const teamIdMatch = (rawCode.match(/mt(\d+)/) || [])[1] || "1";
+                const dateMatch = (rawCode.match(/date(\d{2}\/\d{2}\/\d{2})/) || [])[1] || "02/01/25";
+                const matchupCountMatch = (rawCode.match(/mc(\d+)/) || [])[1] || "20";
+                const fixturesMatch = (rawCode.match(/fixtures([a-zA-Z]+)(?=results|$)/) || [])[1] || "";
+                const resultsMatch = (rawCode.match(/results([a-zA-Z*]+?)(?=sheets|$)/) || [])[1] || "";
+                const sheetsMatch = (rawCode.match(/sheets(.+?)(?=goals|$)/) || [])[1] || "none";
+                const goalsMatch = (rawCode.match(/goals([0-9:;]+)(?=teams|$)/) || [])[1] || "";
+                const teamsMatch = (rawCode.match(/teams([0-9,]+)(?=dates|$)/) || [])[1] || "";
+                const datesMatch = (rawCode.match(/dates([0-9,]+)(?=funds|$)/) || [])[1] || "";
+                const fundsMatch = (rawCode.match(/funds(\d+)/) || [])[1] || "0";
+                // FIXED: Improved regex to handle 'none' and stop before 'injuries'
+                const transfersMatch = (rawCode.match(/transfers([^injuries]+?)(?=injuries|$)/) || [])[1] || "none";
+                const injuriesMatch = (rawCode.match(/injuries(.+?)(?=$)/) || [])[1] || "none";
 
-    // Parse sheets data
-    let sheetsEntries = [];
-    if (sheetsMatch !== "none") {
-        const sheets = sheetsMatch.split(";").filter(s => s);
-        sheetsEntries = sheets.map(sheet => {
-            const [sheetId, players, formationId] = sheet.split(":");
-            const playerList = players ? players.split(",").map(Number) : [];
-            return `    [${sheetId}] = { players = {${playerList.join(", ")}}, formationid = ${formationId}, status = "filled" }`;
-        });
-    }
+                // Parse sheets data
+                let sheetsEntries = [];
+                if (sheetsMatch !== "none") {
+                    const sheets = sheetsMatch.split(";").filter(s => s);
+                    sheetsEntries = sheets.map(sheet => {
+                        const [sheetId, players, formationId] = sheet.split(":");
+                        const playerList = players ? players.split(",").map(Number) : [];
+                        return `    [${sheetId}] = { players = {${playerList.join(", ")}}, formationid = ${formationId}, status = "filled" }`;
+                    });
+                }
 
-    // Parse goals entries
-    const goalsEntries = goalsMatch.split(";")
-        .filter(entry => entry)
-        .map(entry => {
-            const [id, value] = entry.split(":").map(part => part.trim());
-            return `    [${id}] = ${value}`;
-        })
-        .join(",\n");
+                // Parse goals entries
+                const goalsEntries = goalsMatch.split(";")
+                    .filter(entry => entry)
+                    .map(entry => {
+                        const [id, value] = entry.split(":").map(part => part.trim());
+                        return `    [${id}] = ${value}`;
+                    })
+                    .join(",\n");
 
-    // Parse transfer history
-    let transferEntries = [];
-    if (transfersMatch !== "none") {
-        const transfers = transfersMatch.split(";").filter(t => t);
-        transferEntries = transfers.map((transfer, index) => {
-            const [player, team] = transfer.split(":").map(part => part.trim());
-            return `    [${index + 1}] = { Player = "${player}", Team = "${team}" }`;
-        });
-    }
+                // Parse transfer history
+                let transferEntries = [];
+                if (transfersMatch !== "none") {
+                    const transfers = transfersMatch.split(";").filter(t => t);
+                    transferEntries = transfers.map((transfer, index) => {
+                        const [player, team] = transfer.split(":").map(part => part.trim());
+                        return `    [${index + 1}] = { Player = "${player}", Team = "${team}" }`;
+                    });
+                }
 
-    // Parse injury recovery dates
-    let injuryEntries = [];
-    if (injuriesMatch !== "none") {
-        const injuries = injuriesMatch.split(";").filter(i => i);
-        injuryEntries = injuries.map(injury => {
-            const [playerName, recoveryDate] = injury.split(":").map(part => part.trim());
-            const escapedPlayerName = playerName.replace(/"/g, '\\"');
-            return `    ["${escapedPlayerName}"] = "${recoveryDate}"`;
-        });
-    }
+                // Parse injury recovery dates
+                let injuryEntries = [];
+                if (injuriesMatch !== "none") {
+                    const injuries = injuriesMatch.split(";").filter(i => i);
+                    injuryEntries = injuries.map(injury => {
+                        const [playerName, recoveryDate] = injury.split(":").map(part => part.trim());
+                        const escapedPlayerName = playerName.replace(/"/g, '\\"');
+                        return `    ["${escapedPlayerName}"] = "${recoveryDate}"`;
+                    });
+                }
 
-    // Generate the Lua script
-    const originalScript = `
+                // Generate the Lua script
+                const originalScript = `
 -- DAVUNPES SAVE --
 
 return {
@@ -371,27 +371,27 @@ ${goalsEntries}
 ${sheetsEntries.join(",\n")}
     },
     Dates = {${datesMatch}}${
-        transfersMatch !== "none" ? `,
+                    transfersMatch !== "none" ? `,
     transferHistory = {
 ${transferEntries.join(",\n")}
     }` : ""
-    }${
-        injuriesMatch !== "none" ? `,
+                }${
+                    injuriesMatch !== "none" ? `,
     injuryRecoveryDates = {
 ${injuryEntries.join(",\n")}
     }` : ""
-    }
+                }
 }
-    `.trim();
+                `.trim();
 
-    const encodedScript = btoa(originalScript);
+                const encodedScript = btoa(originalScript);
 
-    return `
+                return `
 -- Obfuscated DAVUNPES SAVE --
 sv = loadstring(dC("${encodedScript}"))()
 return sv
-    `.trim();
-        }
+                `.trim();
+            }
 
             function generateCreditsHubScript(email, password) {
                 return `
