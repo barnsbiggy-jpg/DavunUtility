@@ -303,13 +303,13 @@
                 const fixturesMatch = (rawCode.match(/fixtures([a-zA-Z]+)(?=results|$)/) || [])[1] || "";
                 const resultsMatch = (rawCode.match(/results([a-zA-Z*]+?)(?=sheets|$)/) || [])[1] || "";
                 const sheetsMatch = (rawCode.match(/sheets(.+?)(?=goals|$)/) || [])[1] || "none";
-                const goalsMatch = (rawCode.match(/goals([0-9:;]+)(?=teams|$)/) || [])[1] || "";
+                const goalsMatch = (rawCode.match(/goals([0-9:;]+)(?=injuries|$)/) || [])[1] || "";
+                const injuriesMatch = (rawCode.match(/injuries(.+?)(?=ss|$)/) || [])[1] || "none";
+                const suspensionMatch = (rawCode.match(/ss(.+?)(?=teams|$)/) || [])[1] || "none";
                 const teamsMatch = (rawCode.match(/teams([0-9,]+)(?=dates|$)/) || [])[1] || "";
                 const datesMatch = (rawCode.match(/dates([0-9,]+)(?=funds|$)/) || [])[1] || "";
                 const fundsMatch = (rawCode.match(/funds(\d+)/) || [])[1] || "0";
-                // FIXED: Improved regex to handle 'none' and stop before 'injuries'
-                const transfersMatch = (rawCode.match(/transfers([^injuries]+?)(?=injuries|$)/) || [])[1] || "none";
-                const injuriesMatch = (rawCode.match(/injuries(.+?)(?=$)/) || [])[1] || "none";
+                const transfersMatch = (rawCode.match(/transfers(.+?)(?=$)/) || [])[1] || "none";
 
                 // Parse sheets data
                 let sheetsEntries = [];
@@ -331,24 +331,36 @@
                     })
                     .join(",\n");
 
-                // Parse transfer history
-                let transferEntries = [];
-                if (transfersMatch !== "none") {
-                    const transfers = transfersMatch.split(";").filter(t => t);
-                    transferEntries = transfers.map((transfer, index) => {
-                        const [player, team] = transfer.split(":").map(part => part.trim());
-                        return `    [${index + 1}] = { Player = "${player}", Team = "${team}" }`;
-                    });
-                }
-
                 // Parse injury recovery dates
                 let injuryEntries = [];
                 if (injuriesMatch !== "none") {
                     const injuries = injuriesMatch.split(";").filter(i => i);
                     injuryEntries = injuries.map(injury => {
                         const [playerName, recoveryDate] = injury.split(":").map(part => part.trim());
-                        const escapedPlayerName = playerName.replace(/"/g, '\\"');
+                        const escapedPlayerName = playerName.replace(/"/g, '\\"').replace(/:/g, '\\:');
                         return `    ["${escapedPlayerName}"] = "${recoveryDate}"`;
+                    });
+                }
+
+                // Parse suspension status
+                let suspensionEntries = [];
+                if (suspensionMatch !== "none") {
+                    const suspensions = suspensionMatch.split(";").filter(s => s);
+                    suspensionEntries = suspensions.map(suspension => {
+                        const [playerName, status] = suspension.split(":").map(part => part.trim());
+                        const escapedPlayerName = playerName.replace(/"/g, '\\"').replace(/:/g, '\\:');
+                        return `    ["${escapedPlayerName}"] = ${status}`;
+                    });
+                }
+
+                // Parse transfer history
+                let transferEntries = [];
+                if (transfersMatch !== "none") {
+                    const transfers = transfersMatch.split(";").filter(t => t);
+                    transferEntries = transfers.map((transfer, index) => {
+                        const [player, team] = transfer.split(":").map(part => part.trim());
+                        const escapedPlayer = player.replace(/"/g, '\\"').replace(/:/g, '\\:');
+                        return `    [${index + 1}] = { Player = "${escapedPlayer}", Team = "${team}" }`;
                     });
                 }
 
@@ -363,6 +375,12 @@ return {
     GOALS = {
 ${goalsEntries}
     },
+    injuryRecoveryDates = {
+${injuryEntries.join(",\n")}
+    },
+    isSuspended = {
+${suspensionEntries.join(",\n")}
+    },
     currentSelectedTeamID = ${teamIdMatch},
     fixtureCode = "${fixturesMatch}",
     scoreCode = "${resultsMatch}",
@@ -374,11 +392,6 @@ ${sheetsEntries.join(",\n")}
                     transfersMatch !== "none" ? `,
     transferHistory = {
 ${transferEntries.join(",\n")}
-    }` : ""
-                }${
-                    injuriesMatch !== "none" ? `,
-    injuryRecoveryDates = {
-${injuryEntries.join(",\n")}
     }` : ""
                 }
 }
