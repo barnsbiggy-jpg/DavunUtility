@@ -270,52 +270,69 @@
                     transfers = "none"
                 } = parsedData;
 
+                // Helper to filter valid entries and return empty array if none
+                const filterValidEntries = (data, splitter, validator) => {
+                    if (data === "none" || !data) return [];
+                    const entries = data.split(splitter).filter(item => item);
+                    const validEntries = entries.map(validator).filter(e => e);
+                    return validEntries.length > 0 ? validEntries : [];
+                };
+
                 // Parse sheets
-                const sheetsEntries = sheets === "none" ? [] : sheets.split(";").map(sheet => {
+                const sheetsEntries = filterValidEntries(sheets, ";", sheet => {
                     const [id, players, formation] = sheet.split(":");
-                    return `    [${id}] = { players = {${players || ""}}, formationid = ${formation || 6}, status = "filled" }`;
+                    if (!id || !formation) return null;
+                    const playerList = players ? players.split(",").filter(p => p).join(", ") : "";
+                    return `    [${id}] = { players = {${playerList}}, formationid = ${formation}, status = "filled" }`;
                 });
 
                 // Parse goals
-                const goalsEntries = goals === "none" ? [] : goals.split(";").map(goal => {
+                const goalsEntries = filterValidEntries(goals, ";", goal => {
                     const [id, value] = goal.split(":");
+                    if (!id || !value || value === "undefined") return null;
                     return `    [${id}] = ${value}`;
                 });
 
                 // Parse injuries
-                const injuryEntries = injuries === "none" ? [] : injuries.split(";").map(injury => {
+                const injuryEntries = filterValidEntries(injuries, ";", injury => {
                     const [name, date] = injury.split(":");
+                    if (!name || !date || name === "" || date === "undefined") return null;
                     return `    ["${name}"] = "${date}"`;
                 });
 
                 // Parse suspensions
-                const suspensionEntries = suspensions === "none" ? [] : suspensions.split(";").map(s => {
+                const suspensionEntries = filterValidEntries(suspensions, ";", s => {
                     const [name, status] = s.split(":");
+                    if (!name || !status || name === "" || status === "undefined") return null;
                     return `    ["${name}"] = ${status}`;
                 });
 
                 // Parse red card match counts
-                const redCardMatchCountEntries = redcardmatchcount === "none" ? [] : redcardmatchcount.split(";").map(c => {
+                const redCardMatchCountEntries = filterValidEntries(redcardmatchcount, ";", c => {
                     const [name, count] = c.split(":");
+                    if (!name || !count || name === "" || count === "undefined") return null;
                     return `    ["${name}"] = ${count}`;
                 });
 
                 // Parse red card counts
-                const redCardCountEntries = redcardcount === "none" ? [] : redcardcount.split(";").map(c => {
+                const redCardCountEntries = filterValidEntries(redcardcount, ";", c => {
                     const [name, count] = c.split(":");
+                    if (!name || !count || name === "" || count === "undefined") return null;
                     return `    ["${name}"] = ${count}`;
                 });
 
                 // Parse yellow card counts
-                const yellowCardCountEntries = yellowcardcount === "none" ? [] : yellowcardcount.split(";").map(c => {
+                const yellowCardCountEntries = filterValidEntries(yellowcardcount, ";", c => {
                     const [name, count] = c.split(":");
+                    if (!name || !count || name === "" || count === "undefined") return null;
                     return `    ["${name}"] = ${count}`;
                 });
 
                 // Parse transfers
-                const transferEntries = transfers === "none" ? [] : transfers.split(";").map((t, i) => {
+                const transferEntries = filterValidEntries(transfers, ";", (t, index) => {
                     const [player, team] = t.split(":");
-                    return `    [${i + 1}] = { Player = "${player}", Team = "${team}" }`;
+                    if (!player || !team || player === "" || team === "undefined") return null;
+                    return `    [${index + 1}] = { Player = "${player}", Team = "${team}" }`;
                 });
 
                 // Generate Lua script
@@ -351,7 +368,7 @@ ${yellowCardCountEntries.join(",\n")}
 ${sheetsEntries.join(",\n")}
     },
     Dates = {${matchdates}}${
-                    transfers !== "none" ? `,
+                    transferEntries.length > 0 ? `,
     transferHistory = {
 ${transferEntries.join(",\n")}
     }` : ""
