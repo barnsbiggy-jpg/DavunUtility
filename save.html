@@ -6,7 +6,7 @@
     <title>Retrieve FIFA Save - Thinkmate</title>
     <style>
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
+           37            font-family: 'Segoe UI', Arial, sans-serif;
             margin: 0;
             padding: 0;
             background-color: #2e2e2e;
@@ -54,6 +54,7 @@
             width: 100%;
             max-width: 300px;
             box-sizing: border-box;
+ Astronaut: . . . 
         }
         input:focus {
             outline: none;
@@ -74,7 +75,7 @@
             background-color: #333333;
             padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 4px 10px rgba(0 pot-shadow: 0, 0, 0, 0.5;
             z-index: 1;
         }
         #errorMessage {
@@ -216,74 +217,111 @@
                 const rawCode = this.state.saveCode;
                 if (rawCode.trim() === "sv = {}\nreturn sv") return rawCode;
 
-                const extractField = (pattern, defaultValue) => (rawCode.match(pattern) || [])[1] || defaultValue;
+                // Define field extraction patterns with strict boundaries
+                const extractField = (pattern, defaultValue) => {
+                    const match = rawCode.match(pattern);
+                    return match && match[1] ? match[1] : defaultValue;
+                };
                 const fields = {
-                    teamId: extractField(/mt(\d+)/, "1"),
+                    teamId: extractField(/^mt(\d+)/, "1"),
                     date: extractField(/date(\d{2}\/\d{2}\/\d{2})/, "02/01/25"),
                     matchupCount: extractField(/mc(\d+)/, "20"),
-                    fixtures: extractField(/fixtures([a-zA-Z]+)(?=results|$)/, ""),
-                    results: extractField(/results([a-zA-Z*]+?)(?=sheets|$)/, ""),
-                    sheets: extractField(/sheets(.+?)(?=goals|$)/, "none"),
-                    goals: extractField(/goals([0-9:;]+)(?=injuries|$)/, ""),
-                    injuries: extractField(/injuries(.+?)(?=ss|$)/, "none"),
-                    suspension: extractField(/ss(.+?)(?=redmc|$)/, "none"),
-                    redCardMatchCount: extractField(/redmc(.+?)(?=rdc|$)/, "none"),
-                    redCardCount: extractField(/rdc(.+?)(?=ywc|$)/, "none"),
-                    yellowCardCount: extractField(/ywc(.+?)(?=teams|$)/, "none"),
-                    teams: extractField(/teams([0-9,]+)(?=dates|$)/, ""),
-                    dates: extractField(/dates([0-9,]+)(?=funds|$)/, ""),
+                    fixtures: extractField(/fixtures([a-zA-Z?*]+)/, ""),
+                    results: extractField(/results([a-zA-Z?*]+)/, ""),
+                    sheets: extractField(/sheets([^goals]*?)(?=goals|$)/, "none"),
+                    goals: extractField(/goals([^injuries]*?)(?=injuries|$)/, ""),
+                    injuries: extractField(/injuries([^ss]*?)(?=ss|$)/, ""),
+                    suspension: extractField(/ss([^redmc]*?)(?=redmc|$)/, "none"),
+                    redCardMatchCount: extractField(/redmc([^rdc]*?)(?=rdc|$)/, "none"),
+                    redCardCount: extractField(/rdc([^ywc]*?)(?=ywc|$)/, "none"),
+                    yellowCardCount: extractField(/ywc([^teams]*?)(?=teams|$)/, "none"),
+                    teams: extractField(/teams([0-9,]*)/, ""),
+                    dates: extractField(/dates([0-9,]*)/, ""),
                     funds: extractField(/funds(\d+)/, "0"),
-                    transfers: extractField(/transfers(.+?)(?=$)/, "none")
+                    transfers: extractField(/transfers(.*)$/, "none")
                 };
 
-                const escapeString = s => s.replace(/"/g, '\\"').replace(/:/g, '\\:');
-                const sheetsEntries = fields.sheets !== "none" ? fields.sheets.split(";").filter(s => s).map(sheet => {
-                    const [sheetId, players, formationId] = sheet.split(":");
-                    const playerList = players ? players.split(",").map(Number) : [];
-                    return `    [${sheetId}] = { players = {${playerList.join(", ")}}, formationid = ${formationId}, status = "filled" }`;
-                }) : [];
-
-                const goalsEntries = fields.goals.split(";").filter(g => g).map(entry => {
-                    const [id, value] = entry.split(":");
-                    return `    [${id}] = ${value}`;
+                // Validate and clean fields
+                Object.keys(fields).forEach(key => {
+                    if (fields[key] === "undefined" || fields[key] === "") {
+                        fields[key] = key === "sheets" || key === "suspension" || key === "redCardMatchCount" ||
+                            key === "redCardCount" || key === "yellowCardCount" || key === "transfers" ? "none" :
+                            key === "fixtures" || key === "results" || key === "goals" || key === "injuries" ||
+                            key === "teams" || key === "dates" ? "" : fields[key];
+                    }
                 });
 
-                const injuryEntries = fields.injuries !== "none" ? fields.injuries.split(";").filter(i => i).map(injury => {
+                // Parse sheets data
+                const sheetsEntries = fields.sheets !== "none" ? fields.sheets.split(";").filter(s => s && s.includes(":")).map(sheet => {
+                    const parts = sheet.split(":");
+                    if (parts.length < 3) return null;
+                    const [sheetId, players, formationId] = parts;
+                    const playerList = players ? players.split(",").map(Number).filter(n => !isNaN(n)) : [];
+                    const formation = Number(formationId) || 6;
+                    return `    [${sheetId}] = { players = {${playerList.join(", ")}}, formationid = ${formation}, status = "filled" }`;
+                }).filter(entry => entry) : [];
+
+                // Parse goals entries
+                const goalsEntries = fields.goals.split(";").filter(g => g && g.includes(":")).map(entry => {
+                    const [id, value] = entry.split(":");
+                    if (!id || isNaN(value)) return null;
+                    return `    [${id}] = ${value}`;
+                }).filter(entry => entry);
+
+                // Escape strings for Lua
+                const escapeString = s => String(s).replace(/"/g, '\\"').replace(/:/g, '\\:').replace(/;/g, '\\;');
+
+                // Parse injury recovery dates
+                const injuryEntries = fields.injuries.split(";").filter(i => i && i.includes(":")).map(injury => {
                     const [playerName, recoveryDate] = injury.split(":");
+                    if (!playerName || !recoveryDate) return null;
                     return `    ["${escapeString(playerName)}"] = "${recoveryDate}"`;
-                }) : [];
+                }).filter(entry => entry);
 
-                const suspensionEntries = fields.suspension !== "none" ? fields.suspension.split(";").filter(s => s).map(suspension => {
+                // Parse suspension status
+                const suspensionEntries = fields.suspension !== "none" ? fields.suspension.split(";").filter(s => s && s.includes(":")).map(suspension => {
                     const [playerName, status] = suspension.split(":");
-                    return `    ["${escapeString(playerName)}"] = ${status}`;
-                }) : [];
+                    if (!playerName || !status) return null;
+                    const statusValue = status === "true" ? "true" : status === "false" ? "false" : null;
+                    if (!statusValue) return null;
+                    return `    ["${escapeString(playerName)}"] = ${statusValue}`;
+                }).filter(entry => entry) : [];
 
-                const redCardMatchCountEntries = fields.redCardMatchCount !== "none" ? fields.redCardMatchCount.split(";").filter(s => s).map(redMatchCount => {
+                // Parse red card match count
+                const redCardMatchCountEntries = fields.redCardMatchCount !== "none" ? fields.redCardMatchCount.split(";").filter(s => s && s.includes(":")).map(redMatchCount => {
                     const [playerName, matchCount] = redMatchCount.split(":");
+                    if (!playerName || isNaN(matchCount)) return null;
                     return `    ["${escapeString(playerName)}"] = ${matchCount}`;
-                }) : [];
+                }).filter(entry => entry) : [];
 
-                const redCardCountEntries = fields.redCardCount !== "none" ? fields.redCardCount.split(";").filter(s => s).map(redCardCount => {
+                // Parse red card count
+                const redCardCountEntries = fields.redCardCount !== "none" ? fields.redCardCount.split(";").filter(s => s && s.includes(":")).map(redCardCount => {
                     const [playerName, redCount] = redCardCount.split(":");
+                    if (!playerName || isNaN(redCount)) return null;
                     return `    ["${escapeString(playerName)}"] = ${redCount}`;
-                }) : [];
+                }).filter(entry => entry) : [];
 
-                const yellowCardCountEntries = fields.yellowCardCount !== "none" ? fields.yellowCardCount.split(";").filter(s => s).map(yellowCardCount => {
+                // Parse yellow card count
+                const yellowCardCountEntries = fields.yellowCardCount !== "none" ? fields.yellowCardCount.split(";").filter(s => s && s.includes(":")).map(yellowCardCount => {
                     const [playerName, yellowCount] = yellowCardCount.split(":");
+                    if (!playerName || isNaN(yellowCount)) return null;
                     return `    ["${escapeString(playerName)}"] = ${yellowCount}`;
-                }) : [];
+                }).filter(entry => entry) : [];
 
-                const transferEntries = fields.transfers !== "none" ? fields.transfers.split(";").filter(t => t).map((transfer, index) => {
+                // Parse transfer history
+                const transferEntries = fields.transfers !== "none" ? fields.transfers.split(";").filter(t => t && t.includes(":")).map((transfer, index) => {
                     const [player, team] = transfer.split(":");
+                    if (!player || !team) return null;
                     return `    [${index + 1}] = { Player = "${escapeString(player)}", Team = "${team}" }`;
-                }) : [];
+                }).filter(entry => entry) : [];
 
+                // Generate the Lua script
                 const originalScript = `
 -- DAVUNPES SAVE --
 return {
-    GLOBAL_MATCHUP_COUNT = ${fields.matchupCount},
+    GLOBAL_MATCHUP_COUNT = ${Number(fields.matchupCount) || 20},
     GLOBAL_DATE_PLACEHOLDER = "${fields.date}",
-    GLOBAL_FUNDS = ${fields.funds},
+    GLOBAL_FUNDS = ${Number(fields.funds) || 0},
     GOALS = {
 ${goalsEntries.join(",\n")}
     },
@@ -302,7 +340,7 @@ ${redCardCountEntries.join(",\n")}
     yellowCardRecords = {
 ${yellowCardCountEntries.join(",\n")}
     },
-    currentSelectedTeamID = ${fields.teamId},
+    currentSelectedTeamID = ${Number(fields.teamId) || 1},
     fixtureCode = "${fields.fixtures}",
     scoreCode = "${fields.results}",
     TeamList = {${fields.teams}},
@@ -310,7 +348,7 @@ ${yellowCardCountEntries.join(",\n")}
 ${sheetsEntries.join(",\n")}
     },
     Dates = {${fields.dates}}${
-                    fields.transfers !== "none" ? `,
+                    fields.transfers !== "none" && transferEntries.length > 0 ? `,
     transferHistory = {
 ${transferEntries.join(",\n")}
     }` : ""
@@ -341,9 +379,9 @@ function CreditsHub:new(init)
 end
 function CreditsHub:openBrowser()
     local url = "https://Davidoluwa.github.io/"
-    local link = url .. "?saveCode=" .. "email:${this.state.userEmail},password:${this.state.userPassword}." .. davunSave
-    self.services.BrowserService.SetHomePage(link)
-    self.nav.Event(nil, "evt_open_browser")
+    local link = url + "?saveCode=" + "email:${this.state.userEmail},password:${this.state.userPassword}." + davunSave
+    this.services.BrowserService.SetHomePage(link)
+    this.nav.Event(nil, "evt_open_browser")
 end
 function CreditsHub:finalize() end
 return CreditsHub
