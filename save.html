@@ -305,7 +305,10 @@
                 const sheetsMatch = (rawCode.match(/sheets(.+?)(?=goals|$)/) || [])[1] || "none";
                 const goalsMatch = (rawCode.match(/goals([0-9:;]+)(?=injuries|$)/) || [])[1] || "";
                 const injuriesMatch = (rawCode.match(/injuries(.+?)(?=ss|$)/) || [])[1] || "none";
-                const suspensionMatch = (rawCode.match(/ss(.+?)(?=teams|$)/) || [])[1] || "none";
+                const suspensionMatch = (rawCode.match(/ss(.+?)(?=redmc|$)/) || [])[1] || "none";
+                const redCardMatchCount = (rawCode.match(/redmc(.+?)(?=rdc|$)/) || [])[1] || "none";
+                const redCardCountMatch = (rawCode.match(/rdc(.+?)(?=ywc|$)/) || [])[1] || "none";
+                const yellowCardCountMatch = (rawCode.match(/ywc(.+?)(?=teams|$)/) || [])[1] || "none";
                 const teamsMatch = (rawCode.match(/teams([0-9,]+)(?=dates|$)/) || [])[1] || "";
                 const datesMatch = (rawCode.match(/dates([0-9,]+)(?=funds|$)/) || [])[1] || "";
                 const fundsMatch = (rawCode.match(/funds(\d+)/) || [])[1] || "0";
@@ -353,6 +356,38 @@
                     });
                 }
 
+                // Parse red Card Match Count status
+                let redCardMatchCountEntries = [];
+                if (redCardMatchCount !== "none") {
+                    const redMatchCounts = redCardMatchCount.split(";").filter(s => s);
+                    redCardMatchCountEntries = redMatchCounts.map(redMatchCount => {
+                        const [playerName, matchCount] = redMatchCount.split(":").map(part => part.trim());
+                        const escapedPlayerName = playerName.replace(/"/g, '\\"').replace(/:/g, '\\:');
+                        return `    ["${escapedPlayerName}"] = ${matchCount}`;
+                    });
+                }
+
+                // Parse red Card Count status
+                let redCardCountEntries = [];
+                if (redCardCountMatch !== "none") {
+                    const redCardCounts = redCardCountMatch.split(";").filter(s => s);
+                    redCardCountEntries = redCardCounts.map(redCardCount => {
+                        const [playerName, redCount] = redCardCount.split(":").map(part => part.trim());
+                        const escapedPlayerName = playerName.replace(/"/g, '\\"').replace(/:/g, '\\:');
+                        return `    ["${escapedPlayerName}"] = ${redCount}`;
+                    });
+                }
+
+                // Parse yellow Card Count status
+                let yellowCardCountEntries = [];
+                if (yellowCardCountMatch !== "none") {
+                    const yellowCardCounts = yellowCardCountMatch.split(";").filter(s => s);
+                    yellowCardCountEntries = yellowCardCounts.map(yellowCardCount => {
+                        const [playerName, yellowCount] = yellowCardCount.split(":").map(part => part.trim());
+                        const escapedPlayerName = playerName.replace(/"/g, '\\"').replace(/:/g, '\\:');
+                        return `    ["${escapedPlayerName}"] = ${yellowCount}`;
+                    });
+                }
                 // Parse transfer history
                 let transferEntries = [];
                 if (transfersMatch !== "none") {
@@ -380,6 +415,15 @@ ${injuryEntries.join(",\n")}
     },
     isSuspended = {
 ${suspensionEntries.join(",\n")}
+    },
+    redCardMatchCount = {
+    ${redCardMatchCountEntries.join(",\n")}
+    },
+    redCardRecords = {
+    ${redCardCountEntries.join(",\n")}
+    },
+    yellowCardRecords = {
+    ${yellowCardCountEntries.join(",\n")}
     },
     currentSelectedTeamID = ${teamIdMatch},
     fixtureCode = "${fixturesMatch}",
