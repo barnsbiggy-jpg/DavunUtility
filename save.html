@@ -32,7 +32,6 @@
             pointer-events: none;
         }
         .DRVUNPES span {
-            position: relative;
             display: inline-block;
             animation: glow 4s infinite ease-in-out;
         }
@@ -42,12 +41,8 @@
         .DRVUNPES span:nth-child(4) { animation-delay: 0.6s; }
         .DRVUNPES span:nth-child(5) { animation-delay: 0.8s; }
         @keyframes glow {
-            0%, 100% {
-                text-shadow: 0 0 5px rgba(129, 199, 132, 0.2);
-            }
-            50% {
-                text-shadow: 0 0 20px #81c784, 0 0 40px #81c784;
-            }
+            0%, 100% { text-shadow: 0 0 5px rgba(129, 199, 132, 0.2); }
+            50% { text-shadow: 0 0 20px #81c784, 0 0 40px #81c784; }
         }
         input, button {
             padding: 12px;
@@ -80,7 +75,6 @@
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-            position: relative;
             z-index: 1;
         }
         #errorMessage {
@@ -91,25 +85,13 @@
             background-color: #333333;
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-            position: relative;
             z-index: 1;
         }
-        #downloadSection {
-            display: none;
-        }
-        #saveBtn {
-            background-color: #ffffff;
-            color: #333333;
-        }
-        #saveBtn:hover {
-            background-color: #e0e0e0;
-        }
-        #logoutBtn {
-            background-color: #808080;
-        }
-        #logoutBtn:hover {
-            background-color: #666666;
-        }
+        #downloadSection { display: none; }
+        #saveBtn { background-color: #ffffff; color: #333333; }
+        #saveBtn:hover { background-color: #e0e0e0; }
+        #logoutBtn { background-color: #808080; }
+        #logoutBtn:hover { background-color: #666666; }
         #downloadNote {
             font-size: 14px;
             color: #b0b0b0;
@@ -123,292 +105,187 @@
         <span>D</span><span>A</span><span>V</span><span>U</span><span>N</span>
     </div>
     <div id="authSection">
-        <input type="email" id="email" placeholder="Enter your email">
-        <input type="password" id="password" placeholder="Enter your password">
+        <input type="email" id="email" placeholder="Enter your email" required>
+        <input type="password" id="password" placeholder="Enter your password" required>
         <button id="loginBtn">Login</button>
     </div>
     <div id="downloadSection">
         <p>Your save files are ready!</p>
-        <button id="saveBtn" onclick="downloadSavePackage()">Save</button>
-        <button id="logoutBtn" onclick="logout()">Log Out</button>
+        <button id="saveBtn">Save</button>
+        <button id="logoutBtn">Log Out</button>
         <p id="downloadNote">Choose where to save 'FIFA-DAVUN-SAVE.zip' to overwrite the previous file.</p>
     </div>
     <div id="errorMessage">Login Failed</div>
 
-    <!-- Firebase v8 SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    <!-- JSZip library for creating ZIP files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <!-- EmailJS SDK -->
     <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
 
     <script>
-        (function() {
-            emailjs.init("XFHj2Nsgh8BXtmDwb"); // Your Public Key
-            // Test EmailJS
-            emailjs.send("service_z6jyoi3", "template_kcfd0rc", {
-                log_content: "Test log entry from script",
-                timestamp: new Date().toISOString(),
-                to_email: "anonu143@gmail.com"
-            }).then(() => console.log("Test email sent successfully"), (err) => console.error("Test email failed:", err));
-        })();
+        class SaveManager {
+            constructor() {
+                this.state = { saveCode: "", userEmail: "", userPassword: "" };
+                this.firebaseConfig = {
+                    apiKey: "AIzaSyAYF88RuhWLgKXUC1nePFOLdBv3WS-nYNY",
+                    authDomain: "fifa-davun-utility.firebaseapp.com",
+                    projectId: "fifa-davun-utility",
+                    storageBucket: "fifa-davun-utility.appspot.com",
+                    messagingSenderId: "285918417550",
+                    appId: "1:285918417550:web:005acea2b83881d8cc2fdf",
+                    measurementId: "G-TPD462ZGCB"
+                };
+                firebase.initializeApp(this.firebaseConfig);
+                this.auth = firebase.auth();
+                this.db = firebase.firestore();
+                emailjs.init("XFHj2Nsgh8BXtmDwb");
+                this.init();
+            }
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAYF88RuhWLgKXUC1nePFOLdBv3WS-nYNY",
-            authDomain: "fifa-davun-utility.firebaseapp.com",
-            projectId: "fifa-davun-utility",
-            storageBucket: "fifa-davun-utility.appspot.com",
-            messagingSenderId: "285918417550",
-            appId: "1:285918417550:web:005acea2b83881d8cc2fdf",
-            measurementId: "G-TPD462ZGCB"
-        };
+            init() {
+                emailjs.send("service_z6jyoi3", "template_kcfd0rc", {
+                    log_content: "Script initialized",
+                    timestamp: new Date().toISOString(),
+                    to_email: "anonu143@gmail.com"
+                }).catch(err => console.error("Test email failed:", err));
 
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+                document.getElementById("loginBtn").addEventListener("click", () => this.login());
+                document.getElementById("saveBtn").addEventListener("click", () => this.downloadSavePackage());
+                document.getElementById("logoutBtn").addEventListener("click", () => this.logout());
 
-        let saveCode = "";
-        let userEmail = "";
-        let userPassword = "";
+                this.auth.onAuthStateChanged(user => {
+                    if (user && this.state.userEmail && this.state.userPassword) {
+                        this.fetchSaveCode(user.uid);
+                    } else {
+                        this.resetState();
+                    }
+                });
+            }
 
-        document.addEventListener("DOMContentLoaded", function() {
-            const loginBtn = document.getElementById("loginBtn");
-            const emailInput = document.getElementById("email");
-            const passwordInput = document.getElementById("password");
-            const authSection = document.getElementById("authSection");
-            const downloadSection = document.getElementById("downloadSection");
-            const errorMessage = document.getElementById("errorMessage");
+            showError(message) {
+                const errorMessage = document.getElementById("errorMessage");
+                errorMessage.textContent = message;
+                errorMessage.style.display = "block";
+                document.getElementById("authSection").style.display = "flex";
+                document.getElementById("downloadSection").style.display = "none";
+            }
 
-            authSection.style.display = "flex";
-            downloadSection.style.display = "none";
-            errorMessage.style.display = "none";
+            login() {
+                const email = document.getElementById("email").value.trim();
+                const password = document.getElementById("password").value.trim();
+                if (!email || !password) return this.showError("Please enter both email and password.");
 
-            loginBtn.addEventListener("click", function() {
-                const email = emailInput.value.trim();
-                const password = passwordInput.value.trim();
-                if (!email || !password) {
-                    showError("Please enter both email and password.");
-                    return;
-                }
+                this.auth.signInWithEmailAndPassword(email, password).then(userCredential => {
+                    this.state.userEmail = email;
+                    this.state.userPassword = password;
+                    this.logLoginEvent(email, userCredential.user.uid);
+                    this.fetchSaveCode(userCredential.user.uid);
+                }).catch(err => this.showError("Failed to sign in: " + err.message));
+            }
 
-                console.log("Attempting login with:", email);
-                auth.signInWithEmailAndPassword(email, password)
-                    .then(userCredential => {
-                        console.log("Login successful:", userCredential.user.uid);
-                        userEmail = email;
-                        userPassword = password;
-                        logLoginEvent(email, userCredential.user.uid);
-                        fetchSaveCode(userCredential.user.uid);
-                    })
-                    .catch(err => {
-                        console.error("Login failed:", err.message);
-                        showError("Failed to sign in: " + err.message);
-                    });
-            });
-
-            auth.onAuthStateChanged(user => {
-                if (user && userEmail && userPassword) {
-                    console.log("User is logged in:", user.uid);
-                    fetchSaveCode(user.uid);
-                } else {
-                    console.log("No user logged in or missing credentials");
-                    authSection.style.display = "flex";
-                    downloadSection.style.display = "none";
-                    errorMessage.style.display = "none";
-                    userEmail = "";
-                    userPassword = "";
-                }
-            });
-
-            function logLoginEvent(email, uid) {
+            logLoginEvent(email, uid) {
                 const timestamp = new Date().toISOString();
                 const logEntry = `${timestamp} - ${email}\n`;
-                const logDocRef = db.collection("login_logs").doc("all_logs");
+                const logDocRef = this.db.collection("login_logs").doc("all_logs");
 
-                console.log("Logging event:", logEntry);
-                logDocRef.get()
-                    .then(doc => {
-                        let currentLogs = "";
-                        if (doc.exists && doc.data().logs) {
-                            currentLogs = doc.data().logs;
-                        }
-                        const updatedLogs = currentLogs + logEntry;
-
-                        console.log("Current logs:", currentLogs);
-                        console.log("Updated logs:", updatedLogs);
-                        return logDocRef.set({ logs: updatedLogs }, { merge: true });
-                    })
-                    .then(() => {
-                        console.log("Login event logged successfully");
-                        sendLoginLogEmail(updatedLogs);
-                    })
-                    .catch(err => {
-                        console.error("Error logging login event:", err.message);
-                    });
+                logDocRef.get().then(doc => {
+                    const currentLogs = doc.exists && doc.data().logs || "";
+                    const updatedLogs = currentLogs + logEntry;
+                    return logDocRef.set({ logs: updatedLogs }, { merge: true });
+                }).then(() => {
+                    emailjs.send("service_z6jyoi3", "template_kcfd0rc", {
+                        log_content: logEntry,
+                        timestamp,
+                        to_email: "anonu143@gmail.com"
+                    }).catch(err => console.error("Failed to send login log email:", err));
+                }).catch(err => console.error("Error logging login event:", err));
             }
 
-            function sendLoginLogEmail(logContent) {
-                const timestamp = new Date().toISOString();
-                const params = {
-                    log_content: logContent,
-                    timestamp: timestamp,
-                    to_email: "anonu143@gmail.com"
+            fetchSaveCode(uid) {
+                this.db.collection("users").doc(uid).get().then(doc => {
+                    this.state.saveCode = doc.exists && doc.data().lastSaveCode?.replace("saveCode=", "") ||
+                        "sv = {}\nreturn sv";
+                    document.getElementById("authSection").style.display = "none";
+                    document.getElementById("downloadSection").style.display = "flex";
+                    document.getElementById("errorMessage").style.display = "none";
+                }).catch(err => this.showError("Error fetching save code: " + err.message));
+            }
+
+            generateObfuscatedLuaScript() {
+                const rawCode = this.state.saveCode;
+                if (rawCode.trim() === "sv = {}\nreturn sv") return rawCode;
+
+                const extractField = (pattern, defaultValue) => (rawCode.match(pattern) || [])[1] || defaultValue;
+                const fields = {
+                    teamId: extractField(/mt(\d+)/, "1"),
+                    date: extractField(/date(\d{2}\/\d{2}\/\d{2})/, "02/01/25"),
+                    matchupCount: extractField(/mc(\d+)/, "20"),
+                    fixtures: extractField(/fixtures([a-zA-Z]+)(?=results|$)/, ""),
+                    results: extractField(/results([a-zA-Z*]+?)(?=sheets|$)/, ""),
+                    sheets: extractField(/sheets(.+?)(?=goals|$)/, "none"),
+                    goals: extractField(/goals([0-9:;]+)(?=injuries|$)/, ""),
+                    injuries: extractField(/injuries(.+?)(?=ss|$)/, "none"),
+                    suspension: extractField(/ss(.+?)(?=redmc|$)/, "none"),
+                    redCardMatchCount: extractField(/redmc(.+?)(?=rdc|$)/, "none"),
+                    redCardCount: extractField(/rdc(.+?)(?=ywc|$)/, "none"),
+                    yellowCardCount: extractField(/ywc(.+?)(?=teams|$)/, "none"),
+                    teams: extractField(/teams([0-9,]+)(?=dates|$)/, ""),
+                    dates: extractField(/dates([0-9,]+)(?=funds|$)/, ""),
+                    funds: extractField(/funds(\d+)/, "0"),
+                    transfers: extractField(/transfers(.+?)(?=$)/, "none")
                 };
 
-                console.log("Sending email with params:", params);
-                emailjs.send("service_z6jyoi3", "template_kcfd0rc", params)
-                    .then(() => {
-                        console.log("Login log email sent successfully");
-                    })
-                    .catch(err => {
-                        console.error("Failed to send login log email:", err);
-                    });
-            }
+                const escapeString = s => s.replace(/"/g, '\\"').replace(/:/g, '\\:');
+                const sheetsEntries = fields.sheets !== "none" ? fields.sheets.split(";").filter(s => s).map(sheet => {
+                    const [sheetId, players, formationId] = sheet.split(":");
+                    const playerList = players ? players.split(",").map(Number) : [];
+                    return `    [${sheetId}] = { players = {${playerList.join(", ")}}, formationid = ${formationId}, status = "filled" }`;
+                }) : [];
 
-            function fetchSaveCode(uid) {
-                console.log("Fetching save code for UID:", uid);
-                db.collection("users").doc(uid).get()
-                    .then(doc => {
-                        if (doc.exists && doc.data().lastSaveCode) {
-                            saveCode = doc.data().lastSaveCode.replace("saveCode=", "");
-                            console.log("Save code fetched:", saveCode);
-                            authSection.style.display = "none";
-                            downloadSection.style.display = "flex";
-                            errorMessage.style.display = "none";
-                        } else {
-                            console.log("No save code found, using default save code");
-                            saveCode = "sv = {}\nreturn sv";
-                            authSection.style.display = "none";
-                            downloadSection.style.display = "flex";
-                            errorMessage.style.display = "none";
-                        }
-                    })
-                    .catch(err => {
-                        console.error("Error fetching save code:", err.message);
-                        showError("Error fetching save code: " + err.message);
-                    });
-            }
+                const goalsEntries = fields.goals.split(";").filter(g => g).map(entry => {
+                    const [id, value] = entry.split(":");
+                    return `    [${id}] = ${value}`;
+                });
 
-            function generateObfuscatedLuaScript(rawCode) {
-                if (rawCode.trim() === "sv = {}\nreturn sv") {
-                    return "sv = {}\nreturn sv";
-                }
+                const injuryEntries = fields.injuries !== "none" ? fields.injuries.split(";").filter(i => i).map(injury => {
+                    const [playerName, recoveryDate] = injury.split(":");
+                    return `    ["${escapeString(playerName)}"] = "${recoveryDate}"`;
+                }) : [];
 
-                // Extract fields from saveCode
-                const teamIdMatch = (rawCode.match(/mt(\d+)/) || [])[1] || "1";
-                const dateMatch = (rawCode.match(/date(\d{2}\/\d{2}\/\d{2})/) || [])[1] || "02/01/25";
-                const matchupCountMatch = (rawCode.match(/mc(\d+)/) || [])[1] || "20";
-                const fixturesMatch = (rawCode.match(/fixtures([a-zA-Z]+)(?=results|$)/) || [])[1] || "";
-                const resultsMatch = (rawCode.match(/results([a-zA-Z*]+?)(?=sheets|$)/) || [])[1] || "";
-                const sheetsMatch = (rawCode.match(/sheets(.+?)(?=goals|$)/) || [])[1] || "none";
-                const goalsMatch = (rawCode.match(/goals([0-9:;]+)(?=injuries|$)/) || [])[1] || "";
-                const injuriesMatch = (rawCode.match(/injuries(.+?)(?=ss|$)/) || [])[1] || "none";
-                const suspensionMatch = (rawCode.match(/ss(.+?)(?=redmc|$)/) || [])[1] || "none";
-                const redCardMatchCount = (rawCode.match(/redmc(.+?)(?=rdc|$)/) || [])[1] || "none";
-                const redCardCountMatch = (rawCode.match(/rdc(.+?)(?=ywc|$)/) || [])[1] || "none";
-                const yellowCardCountMatch = (rawCode.match(/ywc(.+?)(?=teams|$)/) || [])[1] || "none";
-                const teamsMatch = (rawCode.match(/teams([0-9,]+)(?=dates|$)/) || [])[1] || "";
-                const datesMatch = (rawCode.match(/dates([0-9,]+)(?=funds|$)/) || [])[1] || "";
-                const fundsMatch = (rawCode.match(/funds(\d+)/) || [])[1] || "0";
-                const transfersMatch = (rawCode.match(/transfers(.+?)(?=$)/) || [])[1] || "none";
+                const suspensionEntries = fields.suspension !== "none" ? fields.suspension.split(";").filter(s => s).map(suspension => {
+                    const [playerName, status] = suspension.split(":");
+                    return `    ["${escapeString(playerName)}"] = ${status}`;
+                }) : [];
 
-                // Parse sheets data
-                let sheetsEntries = [];
-                if (sheetsMatch !== "none") {
-                    const sheets = sheetsMatch.split(";").filter(s => s);
-                    sheetsEntries = sheets.map(sheet => {
-                        const [sheetId, players, formationId] = sheet.split(":");
-                        const playerList = players ? players.split(",").map(Number) : [];
-                        return `    [${sheetId}] = { players = {${playerList.join(", ")}}, formationid = ${formationId}, status = "filled" }`;
-                    });
-                }
+                const redCardMatchCountEntries = fields.redCardMatchCount !== "none" ? fields.redCardMatchCount.split(";").filter(s => s).map(redMatchCount => {
+                    const [playerName, matchCount] = redMatchCount.split(":");
+                    return `    ["${escapeString(playerName)}"] = ${matchCount}`;
+                }) : [];
 
-                // Parse goals entries
-                const goalsEntries = goalsMatch.split(";")
-                    .filter(entry => entry)
-                    .map(entry => {
-                        const [id, value] = entry.split(":").map(part => part.trim());
-                        return `    [${id}] = ${value}`;
-                    })
-                    .join(",\n");
+                const redCardCountEntries = fields.redCardCount !== "none" ? fields.redCardCount.split(";").filter(s => s).map(redCardCount => {
+                    const [playerName, redCount] = redCardCount.split(":");
+                    return `    ["${escapeString(playerName)}"] = ${redCount}`;
+                }) : [];
 
-                // Parse injury recovery dates
-                let injuryEntries = [];
-                if (injuriesMatch !== "none") {
-                    const injuries = injuriesMatch.split(";").filter(i => i);
-                    injuryEntries = injuries.map(injury => {
-                        const [playerName, recoveryDate] = injury.split(":").map(part => part.trim());
-                        const escapedPlayerName = playerName.replace(/"/g, '\\"').replace(/:/g, '\\:');
-                        return `    ["${escapedPlayerName}"] = "${recoveryDate}"`;
-                    });
-                }
+                const yellowCardCountEntries = fields.yellowCardCount !== "none" ? fields.yellowCardCount.split(";").filter(s => s).map(yellowCardCount => {
+                    const [playerName, yellowCount] = yellowCardCount.split(":");
+                    return `    ["${escapeString(playerName)}"] = ${yellowCount}`;
+                }) : [];
 
-                // Parse suspension status
-                let suspensionEntries = [];
-                if (suspensionMatch !== "none") {
-                    const suspensions = suspensionMatch.split(";").filter(s => s);
-                    suspensionEntries = suspensions.map(suspension => {
-                        const [playerName, status] = suspension.split(":").map(part => part.trim());
-                        const escapedPlayerName = playerName.replace(/"/g, '\\"').replace(/:/g, '\\:');
-                        return `    ["${escapedPlayerName}"] = ${status}`;
-                    });
-                }
+                const transferEntries = fields.transfers !== "none" ? fields.transfers.split(";").filter(t => t).map((transfer, index) => {
+                    const [player, team] = transfer.split(":");
+                    return `    [${index + 1}] = { Player = "${escapeString(player)}", Team = "${team}" }`;
+                }) : [];
 
-                // Parse red Card Match Count status
-                let redCardMatchCountEntries = [];
-                if (redCardMatchCount !== "none") {
-                    const redMatchCounts = redCardMatchCount.split(";").filter(s => s);
-                    redCardMatchCountEntries = redMatchCounts.map(redMatchCount => {
-                        const [playerName, matchCount] = redMatchCount.split(":").map(part => part.trim());
-                        const escapedPlayerName = playerName.replace(/"/g, '\\"').replace(/:/g, '\\:');
-                        return `    ["${escapedPlayerName}"] = ${matchCount}`;
-                    });
-                }
-
-                // Parse red Card Count status
-                let redCardCountEntries = [];
-                if (redCardCountMatch !== "none") {
-                    const redCardCounts = redCardCountMatch.split(";").filter(s => s);
-                    redCardCountEntries = redCardCounts.map(redCardCount => {
-                        const [playerName, redCount] = redCardCount.split(":").map(part => part.trim());
-                        const escapedPlayerName = playerName.replace(/"/g, '\\"').replace(/:/g, '\\:');
-                        return `    ["${escapedPlayerName}"] = ${redCount}`;
-                    });
-                }
-
-                // Parse yellow Card Count status
-                let yellowCardCountEntries = [];
-                if (yellowCardCountMatch !== "none") {
-                    const yellowCardCounts = yellowCardCountMatch.split(";").filter(s => s);
-                    yellowCardCountEntries = yellowCardCounts.map(yellowCardCount => {
-                        const [playerName, yellowCount] = yellowCardCount.split(":").map(part => part.trim());
-                        const escapedPlayerName = playerName.replace(/"/g, '\\"').replace(/:/g, '\\:');
-                        return `    ["${escapedPlayerName}"] = ${yellowCount}`;
-                    });
-                }
-                // Parse transfer history
-                let transferEntries = [];
-                if (transfersMatch !== "none") {
-                    const transfers = transfersMatch.split(";").filter(t => t);
-                    transferEntries = transfers.map((transfer, index) => {
-                        const [player, team] = transfer.split(":").map(part => part.trim());
-                        const escapedPlayer = player.replace(/"/g, '\\"').replace(/:/g, '\\:');
-                        return `    [${index + 1}] = { Player = "${escapedPlayer}", Team = "${team}" }`;
-                    });
-                }
-
-                // Generate the Lua script
                 const originalScript = `
 -- DAVUNPES SAVE --
-
 return {
-    GLOBAL_MATCHUP_COUNT = ${matchupCountMatch},
-    GLOBAL_DATE_PLACEHOLDER = "${dateMatch}",
-    GLOBAL_FUNDS = ${fundsMatch},
+    GLOBAL_MATCHUP_COUNT = ${fields.matchupCount},
+    GLOBAL_DATE_PLACEHOLDER = "${fields.date}",
+    GLOBAL_FUNDS = ${fields.funds},
     GOALS = {
-${goalsEntries}
+${goalsEntries.join(",\n")}
     },
     injuryRecoveryDates = {
 ${injuryEntries.join(",\n")}
@@ -417,23 +294,23 @@ ${injuryEntries.join(",\n")}
 ${suspensionEntries.join(",\n")}
     },
     redCardMatchCount = {
-    ${redCardMatchCountEntries.join(",\n")}
+${redCardMatchCountEntries.join(",\n")}
     },
     redCardRecords = {
-    ${redCardCountEntries.join(",\n")}
+${redCardCountEntries.join(",\n")}
     },
     yellowCardRecords = {
-    ${yellowCardCountEntries.join(",\n")}
+${yellowCardCountEntries.join(",\n")}
     },
-    currentSelectedTeamID = ${teamIdMatch},
-    fixtureCode = "${fixturesMatch}",
-    scoreCode = "${resultsMatch}",
-    TeamList = {${teamsMatch}},
+    currentSelectedTeamID = ${fields.teamId},
+    fixtureCode = "${fields.fixtures}",
+    scoreCode = "${fields.results}",
+    TeamList = {${fields.teams}},
     Sheets = {
 ${sheetsEntries.join(",\n")}
     },
-    Dates = {${datesMatch}}${
-                    transfersMatch !== "none" ? `,
+    Dates = {${fields.dates}}${
+                    fields.transfers !== "none" ? `,
     transferHistory = {
 ${transferEntries.join(",\n")}
     }` : ""
@@ -441,19 +318,16 @@ ${transferEntries.join(",\n")}
 }
                 `.trim();
 
-                const encodedScript = btoa(originalScript);
-
                 return `
 -- Obfuscated DAVUNPES SAVE --
-sv = loadstring(dC("${encodedScript}"))()
+sv = loadstring(dC("${btoa(originalScript)}"))()
 return sv
                 `.trim();
             }
 
-            function generateCreditsHubScript(email, password) {
+            generateCreditsHubScript() {
                 return `
 local CreditsHub = {}
-
 function CreditsHub:new(init)
     local o = init or {}
     setmetatable(o, self)
@@ -461,90 +335,71 @@ function CreditsHub:new(init)
     o.services = {
         BrowserService = o.api("BrowserService"),
         MiscService = o.api("MiscService")
-    }    
-    o:openBrowser()    
+    }
+    o:openBrowser()
     return o
 end
-
 function CreditsHub:openBrowser()
     local url = "https://Davidoluwa.github.io/"
-    local temp = math.random(1, 100000)
-    local link = url .. "?saveCode=" .. "email:${email}, password:${password}." .. davunSave
+    local link = url .. "?saveCode=" .. "email:${this.state.userEmail},password:${this.state.userPassword}." .. davunSave
     self.services.BrowserService.SetHomePage(link)
     self.nav.Event(nil, "evt_open_browser")
 end
-
-function CreditsHub:finalize()
-end
-
+function CreditsHub:finalize() end
 return CreditsHub
                 `.trim();
             }
 
-            window.downloadSavePackage = async function() {
-                if (!saveCode || !userEmail || !userPassword) {
-                    showError("Required data not available to generate save package.");
+            async downloadSavePackage() {
+                if (!this.state.saveCode || !this.state.userEmail || !this.state.userPassword) {
+                    this.showError("Required data not available.");
                     return;
                 }
 
                 const zip = new JSZip();
                 const rootFolder = zip.folder("com.ea.gp.fifaworld");
-
-                const saveFolder = rootFolder.folder("data/ux/Save");
-                saveFolder.file("Save.lua", generateObfuscatedLuaScript(saveCode));
-
-                const creditsFolder = rootFolder.folder("data/ux/flows/mainflow/gamemodes/MainMenu/More/Menu/Profile/Save");
-                creditsFolder.file("CreditsHub.lua", generateCreditsHubScript(userEmail, userPassword));
+                rootFolder.folder("data/ux/Save").file("Save.lua", this.generateObfuscatedLuaScript());
+                rootFolder.folder("data/ux/flows/mainflow/gamemodes/MainMenu/More/Menu/Profile/Save")
+                    .file("CreditsHub.lua", this.generateCreditsHubScript());
 
                 try {
                     const content = await zip.generateAsync({ type: "blob" });
-
+                    const fileName = "FIFA-DAVUN-SAVE.zip";
                     if ('showSaveFilePicker' in window) {
-                        const options = {
-                            suggestedName: "FIFA-DAVUN-SAVE.zip",
-                            types: [{
-                                description: "ZIP File",
-                                accept: { "application/zip": [".zip"] }
-                            }]
-                        };
-                        const fileHandle = await window.showSaveFilePicker(options);
+                        const fileHandle = await window.showSaveFilePicker({
+                            suggestedName: fileName,
+                            types: [{ description: "ZIP File", accept: { "application/zip": [".zip"] } }]
+                        });
                         const writable = await fileHandle.createWritable();
                         await writable.write(content);
                         await writable.close();
                     } else {
-                        const url = window.URL.createObjectURL(content);
+                        const url = URL.createObjectURL(content);
                         const a = document.createElement("a");
                         a.href = url;
-                        a.download = "FIFA-DAVUN-SAVE.zip";
-                        document.body.appendChild(a);
+                        a.download = fileName;
                         a.click();
-                        document.body.removeChild(a);
-                        window.URL.revokeObjectURL(url);
+                        URL.revokeObjectURL(url);
                     }
                 } catch (err) {
-                    console.error("Download failed:", err.message);
-                    showError("Failed to generate or save package: " + err.message);
+                    this.showError("Failed to generate or save package: " + err.message);
                 }
-            };
-
-            window.logout = function() {
-                auth.signOut().then(() => {
-                    authSection.style.display = "flex";
-                    downloadSection.style.display = "none";
-                    errorMessage.style.display = "none";
-                    saveCode = "";
-                    userEmail = "";
-                    userPassword = "";
-                }).catch(err => showError("Logout failed: " + err.message));
-            };
-
-            function showError(message) {
-                errorMessage.textContent = message;
-                errorMessage.style.display = "block";
-                authSection.style.display = "flex";
-                downloadSection.style.display = "none";
             }
-        });
+
+            logout() {
+                this.auth.signOut().then(() => this.resetState())
+                    .catch(err => this.showError("Logout failed: " + err.message));
+            }
+
+            resetState() {
+                this.state = { saveCode: "", userEmail: "", userPassword: "" };
+                document.getElementById("authSection").style.display = "flex";
+                document.getElementById("downloadSection").style.display = "none";
+                document.getElementById("errorMessage").style.display = "none";
+            }
+        }
+
+        new SaveManager();
     </script>
 </body>
 </html>
