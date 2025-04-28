@@ -101,7 +101,6 @@
             background-color: #808080;
         }
         #logoutBtn:hover {
- ค
             background-color: #666666;
         }
         #downloadNote {
@@ -129,26 +128,12 @@
     </div>
     <div id="errorMessage">Login Failed</div>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
-
-    <script>
-        // Initialize EmailJS separately to avoid blocking
-        function initializeEmailJS() {
-            try {
-                emailjs.init("XFHj2Nsgh8BXtmDwb");
-                emailjs.send("service_z6jyoi3", "template_kcfd0rc", {
-                    log_content: "Test log entry from script",
-                    timestamp: new Date().toISOString(),
-                    to_email: "anonu143@gmail.com"
-                }).then(() => console.log("Test email sent"), (err) => console.error("Test email failed:", err));
-            } catch (err) {
-                console.error("EmailJS initialization failed:", err);
-            }
-        }
+    <!-- Use Firebase Modular SDK (v10.12.2) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import JSZip from "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
 
         // Firebase configuration
         const firebaseConfig = {
@@ -162,12 +147,13 @@
         };
 
         // Initialize Firebase
-        let auth, db;
+        let app, auth, db;
         try {
-            firebase.initializeApp(firebaseConfig);
-            auth = firebase.auth();
-            db = firebase.firestore();
-            initializeEmailJS();
+            console.log("Initializing Firebase...");
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            console.log("Firebase initialized successfully");
         } catch (err) {
             console.error("Firebase initialization failed:", err);
             showError("Failed to initialize Firebase. Please try again later.");
@@ -377,6 +363,7 @@ return CreditsHub
         // UI and authentication handling
         document.addEventListener("DOMContentLoaded", function() {
             console.log("DOM loaded, setting up event listeners");
+
             const loginBtn = document.getElementById("loginBtn");
             const emailInput = document.getElementById("email");
             const passwordInput = document.getElementById("password");
@@ -384,9 +371,16 @@ return CreditsHub
             const downloadSection = document.getElementById("downloadSection");
             const errorMessage = document.getElementById("errorMessage");
 
-            // Verify elements exist
+            // Verify DOM elements
             if (!loginBtn || !emailInput || !passwordInput || !authSection || !downloadSection || !errorMessage) {
-                console.error("Required DOM elements missing");
+                console.error("Missing DOM elements:", {
+                    loginBtn: !!loginBtn,
+                    emailInput: !!emailInput,
+                    passwordInput: !!passwordInput,
+                    authSection: !!authSection,
+                    downloadSection: !!downloadSection,
+                    errorMessage: !!errorMessage
+                });
                 showError("Page setup failed. Please refresh and try again.");
                 return;
             }
@@ -402,17 +396,17 @@ return CreditsHub
                 const email = emailInput.value.trim();
                 const password = passwordInput.value.trim();
                 if (!email || !password) {
+                    console.log("Missing email or password");
                     showError("Please enter both email and password.");
                     return;
                 }
 
                 console.log("Attempting login with email:", email);
-                auth.signInWithEmailAndPassword(email, password)
+                signInWithEmailAndPassword(auth, email, password)
                     .then(userCredential => {
                         console.log("Login successful, user:", userCredential.user.uid);
                         userEmail = email;
                         userPassword = password;
-                        logLoginEvent(email, userCredential.user.uid);
                         fetchSaveCode(userCredential.user.uid);
                     })
                     .catch(err => {
@@ -422,7 +416,7 @@ return CreditsHub
             });
 
             // Auth state change handler
-            auth.onAuthStateChanged(user => {
+            onAuthStateChanged(auth, user => {
                 console.log("Auth state changed, user:", user ? user.uid : "none");
                 if (user && userEmail && userPassword) {
                     console.log("User is logged in, fetching save code");
@@ -437,52 +431,21 @@ return CreditsHub
                 }
             });
 
-            function logLoginEvent(email, uid) {
-                console.log("Logging login event for:", email);
-                const timestamp = new Date().toISOString();
-                const logEntry = `${timestamp} - ${email}\n`;
-                const logDocRef = db.collection("login_logs").doc("all_logs");
-
-                logDocRef.get()
-                    .then(doc => {
-                        const currentLogs = doc.exists && doc.data().logs || "";
-                        const updatedLogs = currentLogs + logEntry;
-                        return logDocRef.set({ logs: updatedLogs }, { merge: true });
-                    })
-                    .then(() => {
-                        console.log("Login event logged successfully");
-                        sendLoginLogEmail(logEntry);
-                    })
-                    .catch(err => console.error("Error logging login event:", err.message));
-            }
-
-            function sendLoginLogEmail(logContent) {
-                console.log("Sending login log email");
-                emailjs.send("service_z6jyoi3", "template_kcfd0rc", {
-                    log_content: logContent,
-                    timestamp: new Date().toISOString(),
-                    to_email: "anonu143@gmail.com"
-                }).then(() => console.log("Login log email sent"))
-                  .catch(err => console.error("Failed to send login log email:", err));
-            }
-
             function fetchSaveCode(uid) {
                 console.log("Fetching save code for UID:", uid);
-                db.collection("users").doc(uid).get()
-                    .then(doc => {
-                        if (doc.exists && doc.data().lastSaveCode) {
-                            saveData = parseDavunSave(doc.data().lastSaveCode.replace("saveCode=", ""));
+                const userDocRef = doc(db, "users", uid);
+                getDoc(userDocRef)
+                    .then(docSnap => {
+                        if (docSnap.exists() && docSnap.data().lastSaveCode) {
+                            saveData = parseDavunSave(docSnap.data().lastSaveCode.replace("saveCode=", ""));
                             console.log("Save code fetched successfully");
-                            authSection.style.display = "none";
-                            downloadSection.style.display = "flex";
-                            errorMessage.style.display = "none";
                         } else {
                             console.log("No save code found, using default");
                             saveData = parseDavunSave("");
-                            authSection.style.display = "none";
-                            downloadSection.style.display = "flex";
-                            errorMessage.style.display = "none";
                         }
+                        authSection.style.display = "none";
+                        downloadSection.style.display = "flex";
+                        errorMessage.style.display = "none";
                     })
                     .catch(err => {
                         console.error("Error fetching save code:", err.message);
@@ -493,6 +456,7 @@ return CreditsHub
             window.downloadSavePackage = async function() {
                 console.log("Download save package triggered");
                 if (!saveData || !userEmail || !userPassword) {
+                    console.error("Missing required data for download");
                     showError("Required data not available to generate save package.");
                     return;
                 }
@@ -535,7 +499,7 @@ return CreditsHub
 
             window.logout = function() {
                 console.log("Logout triggered");
-                auth.signOut().then(() => {
+                signOut(auth).then(() => {
                     console.log("Logout successful");
                     authSection.style.display = "flex";
                     downloadSection.style.display = "none";
