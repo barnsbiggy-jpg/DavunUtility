@@ -293,39 +293,39 @@
             parseDavunSave() {
                 const rawCode = this.state.saveCode;
                 if (!rawCode.startsWith("v1|")) {
-                    console.error("Invalid davunSave version:", rawCode);
-                    return null;
+                    console.error("Invalid davunSave version, using default:", rawCode);
+                    return {
+                        fields: {
+                            teamId: "1",
+                            date: "02/01/25",
+                            matchupCount: "20",
+                            fixtures: "",
+                            results: "",
+                            sheets: "none",
+                            goals: "none",
+                            injuries: "none",
+                            suspension: "none",
+                            redCardMatchCount: "none",
+                            redCardCount: "none",
+                            yellowCardCount: "none",
+                            teams: "",
+                            dates: "",
+                            funds: "0",
+                            transfers: "none"
+                        },
+                        isComplete: false
+                    };
                 }
 
                 const parts = rawCode.split("|");
-                console.log("Parsed parts count:", parts.length, "Parts:", parts);
-
-                // Expect exactly 18 parts (version, completion, 16 fields)
-                if (parts.length !== 18) {
-                    console.error("Expected exactly 18 parts, got:", parts.length, rawCode);
-                    return null;
-                }
-
-                const [version, completion, ...fieldParts] = parts;
+                const completion = parts[1] || "incomplete";
                 const isComplete = completion === "complete";
                 const fields = {};
-                const expectedFields = [
-                    "teamId", "date", "matchupCount", "fixtures", "results", "sheets",
-                    "goals", "injuries", "suspension", "redCardMatchCount", "redCardCount",
-                    "yellowCardCount", "teams", "dates", "funds", "transfers"
-                ];
 
-                // Parse fields
-                fieldParts.forEach(part => {
-                    const [key, value] = part.split("=");
+                // Parse all available fields
+                for (let i = 2; i < parts.length; i++) {
+                    const [key, value] = parts[i].split("=");
                     if (key && value !== undefined) fields[key] = value;
-                });
-
-                // Validate all expected fields are present
-                const missingFields = expectedFields.filter(key => !(key in fields));
-                if (missingFields.length > 0) {
-                    console.error("Missing fields:", missingFields, "Parsed fields:", fields);
-                    return null;
                 }
 
                 // Define default values
@@ -348,28 +348,18 @@
                     transfers: "none"
                 };
 
-                // Assign defaults for empty or undefined fields
+                // Assign defaults for missing or empty fields
                 Object.keys(defaults).forEach(key => {
-                    if (fields[key] === "" || fields[key] === undefined) {
-                        fields[key] = defaults[key];
-                    }
+                    fields[key] = fields[key] !== undefined ? fields[key] : defaults[key];
+                    if (fields[key] === "") fields[key] = defaults[key];
                 });
 
-                console.log("Final parsed fields:", fields, "isComplete:", isComplete);
+                console.log("Parsed fields:", fields, "isComplete:", isComplete);
                 return { fields, isComplete };
             }
 
             generateObfuscatedLuaScript() {
-                const parsed = this.parseDavunSave();
-                if (!parsed) {
-                    return `
--- Obfuscated DAVUNPES SAVE --
-sv = loadstring(dC("${btoa("return {}")}"))()
-return sv
-                    `.trim();
-                }
-
-                const { fields, isComplete } = parsed;
+                const { fields, isComplete } = this.parseDavunSave();
                 console.log("Generating Lua script with fields:", fields, "Complete:", isComplete);
 
                 // Escape strings for Lua
