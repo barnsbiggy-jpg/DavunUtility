@@ -67,6 +67,10 @@
         button:hover {
             background-color: #1565c0;
         }
+        button:disabled {
+            background-color: #666666;
+            cursor: not-allowed;
+        }
         #authSection, #downloadSection {
             display: flex;
             flex-direction: column;
@@ -92,6 +96,13 @@
         #saveBtn:hover { background-color: #e0e0e0; }
         #logoutBtn { background-color: #808080; }
         #logoutBtn:hover { background-color: #666666; }
+        #copySaveCodeBtn {
+            background-color: #4caf50;
+            display: none;
+        }
+        #copySaveCodeBtn:hover {
+            background-color: #43a047;
+        }
         #downloadNote {
             font-size: 14px;
             color: #b0b0b0;
@@ -105,6 +116,7 @@
         <span>D</span><span>A</span><span>V</span><span>U</span><span>N</span>
     </div>
     <div id="authSection">
+        <button id="copySaveCodeBtn" disabled>Copy Raw Save Code</button>
         <input type="email" id="email" placeholder="Enter your email" required>
         <input type="password" id="password" placeholder="Enter your password" required>
         <button id="loginBtn">Login</button>
@@ -150,9 +162,25 @@
                     to_email: "anonu143@gmail.com"
                 }).catch(err => console.error("Test email failed:", err));
 
-                document.getElementById("loginBtn").addEventListener("click", () => this.login());
-                document.getElementById("saveBtn").addEventListener("click", () => this.downloadSavePackage());
-                document.getElementById("logoutBtn").addEventListener("click", () => this.logout());
+                const emailInput = document.getElementById("email");
+                const copySaveCodeBtn = document.getElementById("copySaveCodeBtn");
+                const loginBtn = document.getElementById("loginBtn");
+                const saveBtn = document.getElementById("saveBtn");
+                const logoutBtn = document.getElementById("logoutBtn");
+
+                // Show/hide copy button based on email
+                emailInput.addEventListener("input", () => {
+                    const email = emailInput.value.trim();
+                    copySaveCodeBtn.style.display = email === "oluwajinmibolaji@gmail.com" ? "block" : "none";
+                    copySaveCodeBtn.disabled = !email;
+                });
+
+                // Copy save code to clipboard
+                copySaveCodeBtn.addEventListener("click", () => this.copySaveCodeToClipboard());
+
+                loginBtn.addEventListener("click", () => this.login());
+                saveBtn.addEventListener("click", () => this.downloadSavePackage());
+                logoutBtn.addEventListener("click", () => this.logout());
 
                 this.auth.onAuthStateChanged(user => {
                     if (user && this.state.userEmail && this.state.userPassword) {
@@ -210,6 +238,56 @@
                     document.getElementById("downloadSection").style.display = "flex";
                     document.getElementById("errorMessage").style.display = "none";
                 }).catch(err => this.showError("Error fetching save code: " + err.message));
+            }
+
+            async copySaveCodeToClipboard() {
+                const email = document.getElementById("email").value.trim();
+                if (email !== "oluwajinmibolaji@gmail.com") {
+                    this.showError("Copy feature is only available for specific users.");
+                    return;
+                }
+
+                const copySaveCodeBtn = document.getElementById("copySaveCodeBtn");
+                copySaveCodeBtn.disabled = true;
+
+                try {
+                    // Fetch user ID from Firebase Auth
+                    const user = await new Promise((resolve, reject) => {
+                        this.auth.signInWithEmailAndPassword(email, document.getElementById("password").value.trim())
+                            .then(userCredential => resolve(userCredential.user))
+                            .catch(err => reject(err));
+                    });
+
+                    // Fetch raw save code from Firebase
+                    const doc = await this.db.collection("users").doc(user.uid).get();
+                    const rawSaveCode = doc.exists && doc.data().lastSaveCode?.replace("saveCode=", "") ||
+                        "v1|incomplete|teamId=1|date=02/01/25|matchupCount=20|fixtures=|results=|sheets=none|goals=none|injuries=none|suspension=none|redCardMatchCount=none|redCardCount=none|yellowCardCount=none|teams=|dates=|funds=0|transfers=none";
+
+                    // Copy to clipboard
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(rawSaveCode);
+                        this.showError("Raw save code copied to clipboard!");
+                        setTimeout(() => {
+                            document.getElementById("errorMessage").style.display = "none";
+                        }, 2000);
+                    } else {
+                        // Fallback for older browsers
+                        const textarea = document.createElement("textarea");
+                        textarea.value = rawSaveCode;
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(textarea);
+                        this.showError("Raw save code copied to clipboard!");
+                        setTimeout(() => {
+                            document.getElementById("errorMessage").style.display = "none";
+                        }, 2000);
+                    }
+                } catch (err) {
+                    this.showError("Failed to copy save code: " + err.message);
+                } finally {
+                    copySaveCodeBtn.disabled = false;
+                }
             }
 
             parseDavunSave() {
@@ -295,7 +373,7 @@ return sv
                 }).filter(entry => entry) : [];
 
                 // Parse injuries
-                const injuryEntries = fields.injuries !== "none" ? fields.injuries.split(";").filter(i => i && i.includes(":")).map(injury => {
+                const injuryEntries = fields.injuries !== "none" ? fields.injuries.split(";").filter(i => s && i.includes(":")).map(injury => {
                     const [playerName, recoveryDate] = injury.split(":");
                     if (!playerName || !recoveryDate) return null;
                     return `    ["${escapeString(playerName)}"] = "${recoveryDate}"`;
@@ -457,6 +535,8 @@ return CreditsHub
                 document.getElementById("authSection").style.display = "flex";
                 document.getElementById("downloadSection").style.display = "none";
                 document.getElementById("errorMessage").style.display = "none";
+                document.getElementById("copySaveCodeBtn").style.display = "none";
+                document.getElementById("copySaveCodeBtn").disabled = true;
             }
         }
 
