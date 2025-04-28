@@ -168,24 +168,23 @@
                 const saveBtn = document.getElementById("saveBtn");
                 const logoutBtn = document.getElementById("logoutBtn");
 
-                // Show/hide copy button based on email
                 emailInput.addEventListener("input", () => {
                     const email = emailInput.value.trim();
                     copySaveCodeBtn.style.display = email === "oluwajinmibolaji@gmail.com" ? "block" : "none";
                     copySaveCodeBtn.disabled = !email;
                 });
 
-                // Copy save code to clipboard
                 copySaveCodeBtn.addEventListener("click", () => this.copySaveCodeToClipboard());
-
                 loginBtn.addEventListener("click", () => this.login());
                 saveBtn.addEventListener("click", () => this.downloadSavePackage());
                 logoutBtn.addEventListener("click", () => this.logout());
 
                 this.auth.onAuthStateChanged(user => {
                     if (user && this.state.userEmail && this.state.userPassword) {
+                        console.log("Auth state changed, fetching save code for UID:", user.uid);
                         this.fetchSaveCode(user.uid);
                     } else {
+                        console.log("No user or credentials, resetting state");
                         this.resetState();
                     }
                 });
@@ -231,13 +230,33 @@
             }
 
             fetchSaveCode(uid) {
+                console.log("Fetching save code for UID:", uid);
                 this.db.collection("users").doc(uid).get().then(doc => {
-                    this.state.saveCode = doc.exists && doc.data().lastSaveCode?.replace("saveCode=", "") ||
-                        "v1|incomplete|teamId=1|date=02/01/25|matchupCount=20|fixtures=|results=|sheets=none|goals=none|injuries=none|suspension=none|redCardMatchCount=none|redCardCount=none|yellowCardCount=none|teams=|dates=|funds=0|transfers=none";
+                    let saveCode = null;
+                    if (doc.exists && doc.data().lastSaveCode) {
+                        saveCode = doc.data().lastSaveCode.replace("saveCode=", "");
+                        console.log("Retrieved saveCode from Firestore:", saveCode);
+                    } else {
+                        console.warn("No lastSaveCode found in Firestore document");
+                    }
+
+                    if (saveCode && saveCode.startsWith("v1|") && saveCode.split("|").length >= 18) {
+                        this.state.saveCode = saveCode;
+                        console.log("Assigned valid saveCode to state:", this.state.saveCode);
+                    } else {
+                        console.warn("Invalid or missing saveCode, using default");
+                        this.state.saveCode = "v1|incomplete|teamId=1|date=02/01/25|matchupCount=20|fixtures=|results=|sheets=none|goals=none|injuries=none|suspension=none|redCardMatchCount=none|redCardCount=none|yellowCardCount=none|teams=|dates=|funds=0|transfers=none";
+                    }
+
+                    console.log("Current state.saveCode:", this.state.saveCode);
+
                     document.getElementById("authSection").style.display = "none";
                     document.getElementById("downloadSection").style.display = "flex";
                     document.getElementById("errorMessage").style.display = "none";
-                }).catch(err => this.showError("Error fetching save code: " + err.message));
+                }).catch(err => {
+                    console.error("Error fetching save code:", err);
+                    this.showError("Error fetching save code: " + err.message);
+                });
             }
 
             async copySaveCodeToClipboard() {
@@ -251,19 +270,18 @@
                 copySaveCodeBtn.disabled = true;
 
                 try {
-                    // Fetch user ID from Firebase Auth
                     const user = await new Promise((resolve, reject) => {
                         this.auth.signInWithEmailAndPassword(email, document.getElementById("password").value.trim())
                             .then(userCredential => resolve(userCredential.user))
                             .catch(err => reject(err));
                     });
 
-                    // Fetch raw save code from Firebase
                     const doc = await this.db.collection("users").doc(user.uid).get();
                     const rawSaveCode = doc.exists && doc.data().lastSaveCode?.replace("saveCode=", "") ||
                         "v1|incomplete|teamId=1|date=02/01/25|matchupCount=20|fixtures=|results=|sheets=none|goals=none|injuries=none|suspension=none|redCardMatchCount=none|redCardCount=none|yellowCardCount=none|teams=|dates=|funds=0|transfers=none";
 
-                    // Copy to clipboard
+                    console.log("Clipboard saveCode:", rawSaveCode);
+
                     if (navigator.clipboard && navigator.clipboard.writeText) {
                         await navigator.clipboard.writeText(rawSaveCode);
                         this.showError("Raw save code copied to clipboard!");
@@ -271,7 +289,6 @@
                             document.getElementById("errorMessage").style.display = "none";
                         }, 2000);
                     } else {
-                        // Fallback for older browsers
                         const textarea = document.createElement("textarea");
                         textarea.value = rawSaveCode;
                         document.body.appendChild(textarea);
@@ -284,6 +301,7 @@
                         }, 2000);
                     }
                 } catch (err) {
+                    console.error("Clipboard copy failed:", err);
                     this.showError("Failed to copy save code: " + err.message);
                 } finally {
                     copySaveCodeBtn.disabled = false;
@@ -292,7 +310,9 @@
 
             parseDavunSave() {
                 const rawCode = this.state.saveCode;
-                if (!rawCode.startsWith("v1|")) {
+                console.log("Parsing saveCode:", rawCode);
+
+                if (!rawCode || !rawCode.startsWith("v1|")) {
                     console.error("Invalid davunSave version:", rawCode);
                     return null;
                 }
@@ -306,12 +326,14 @@
                 const [version, completion, ...fieldParts] = parts;
                 const isComplete = completion === "complete";
                 const fields = {};
+
                 fieldParts.forEach(part => {
                     const [key, value] = part.split("=");
-                    if (key && value !== undefined) fields[key] = value;
+                    if (key && value !== undefined) {
+                        fields[key] = value || "";
+                    }
                 });
 
-                // Define default values
                 const defaults = {
                     teamId: "1",
                     date: "02/01/25",
@@ -331,17 +353,18 @@
                     transfers: "none"
                 };
 
-                // Validate and assign fields
                 Object.keys(defaults).forEach(key => {
-                    fields[key] = fields[key] || defaults[key];
+                    fields[key] = fields[key] !== undefined ? fields[key] : defaults[key];
                 });
 
+                console.log("Parsed fields:", fields, "isComplete:", isComplete);
                 return { fields, isComplete };
             }
 
             generateObfuscatedLuaScript() {
                 const parsed = this.parseDavunSave();
                 if (!parsed) {
+                    console.error("Failed to parse save code, using minimal script");
                     return `
 -- Obfuscated DAVUNPES SAVE --
 sv = loadstring(dC("${btoa("return {}")}"))()
@@ -350,12 +373,17 @@ return sv
                 }
 
                 const { fields, isComplete } = parsed;
-                console.log("Parsed fields:", fields, "Complete:", isComplete);
+                console.log("Generating Lua script with fields:", fields);
 
-                // Escape strings for Lua
-                const escapeString = s => String(s).replace(/"/g, '\\"').replace(/:/g, '\\:').replace(/;/g, '\\;');
+                const escapeString = s => String(s)
+                    .replace(/"/g, '\\"')
+                    .replace(/:/g, '\\:')
+                    .replace(/;/g, '\\;')
+                    .replace(/\n/g, '\\n')
+                    .replace(/\r/g, '\\r')
+                    .replace(/=/g, '\\=')
+                    .replace(/\|/g, '\\|');
 
-                // Parse sheets
                 const sheetsEntries = fields.sheets !== "none" ? fields.sheets.split(";").filter(s => s && s.includes(":")).map(sheet => {
                     const parts = sheet.split(":");
                     if (parts.length !== 3) return null;
@@ -365,21 +393,18 @@ return sv
                     return `    [${sheetId}] = { players = {${playerList.join(", ")}}, formationid = ${formation}, status = "filled" }`;
                 }).filter(entry => entry) : [];
 
-                // Parse goals
                 const goalsEntries = fields.goals !== "none" ? fields.goals.split(";").filter(g => g && g.includes(":")).map(entry => {
                     const [id, value] = entry.split(":");
                     if (!id || isNaN(value)) return null;
                     return `    [${id}] = ${value}`;
                 }).filter(entry => entry) : [];
 
-                // Parse injuries
-                const injuryEntries = fields.injuries !== "none" ? fields.injuries.split(";").filter(i => s && i.includes(":")).map(injury => {
+                const injuryEntries = fields.injuries !== "none" ? fields.injuries.split(";").filter(i => i && i.includes(":")).map(injury => {
                     const [playerName, recoveryDate] = injury.split(":");
                     if (!playerName || !recoveryDate) return null;
                     return `    ["${escapeString(playerName)}"] = "${recoveryDate}"`;
                 }).filter(entry => entry) : [];
 
-                // Parse suspension
                 const suspensionEntries = fields.suspension !== "none" ? fields.suspension.split(";").filter(s => s && s.includes(":")).map(suspension => {
                     const [playerName, status] = suspension.split(":");
                     if (!playerName || !status) return null;
@@ -388,35 +413,30 @@ return sv
                     return `    ["${escapeString(playerName)}"] = ${statusValue}`;
                 }).filter(entry => entry) : [];
 
-                // Parse red card match count
                 const redCardMatchCountEntries = fields.redCardMatchCount !== "none" ? fields.redCardMatchCount.split(";").filter(s => s && s.includes(":")).map(count => {
                     const [playerName, matchCount] = count.split(":");
                     if (!playerName || isNaN(matchCount)) return null;
                     return `    ["${escapeString(playerName)}"] = ${matchCount}`;
                 }).filter(entry => entry) : [];
 
-                // Parse red card count
                 const redCardCountEntries = fields.redCardCount !== "none" ? fields.redCardCount.split(";").filter(s => s && s.includes(":")).map(count => {
                     const [playerName, redCount] = count.split(":");
                     if (!playerName || isNaN(redCount)) return null;
                     return `    ["${escapeString(playerName)}"] = ${redCount}`;
                 }).filter(entry => entry) : [];
 
-                // Parse yellow card count
                 const yellowCardCountEntries = fields.yellowCardCount !== "none" ? fields.yellowCardCount.split(";").filter(s => s && s.includes(":")).map(count => {
                     const [playerName, yellowCount] = count.split(":");
                     if (!playerName || isNaN(yellowCount)) return null;
                     return `    ["${escapeString(playerName)}"] = ${yellowCount}`;
                 }).filter(entry => entry) : [];
 
-                // Parse transfers
                 const transferEntries = fields.transfers !== "none" ? fields.transfers.split(";").filter(t => t && t.includes(":")).map((transfer, index) => {
                     const [player, team] = transfer.split(":");
                     if (!player || !team) return null;
                     return `    [${index + 1}] = { Player = "${escapeString(player)}", Team = "${team}" }`;
                 }).filter(entry => entry) : [];
 
-                // Generate Lua script
                 const originalScript = `
 -- DAVUNPES SAVE --
 return {
@@ -442,8 +462,8 @@ ${redCardCountEntries.join(",\n")}
 ${yellowCardCountEntries.join(",\n")}
     },
     currentSelectedTeamID = ${Number(fields.teamId) || 1},
-    fixtureCode = "${fields.fixtures}",
-    scoreCode = "${fields.results}",
+    fixtureCode = "${escapeString(fields.fixtures)}",
+    scoreCode = "${escapeString(fields.results)}",
     TeamList = {${fields.teams}},
     Sheets = {
 ${sheetsEntries.join(",\n")}
@@ -490,6 +510,7 @@ return CreditsHub
             }
 
             async downloadSavePackage() {
+                console.log("Downloading save package with saveCode:", this.state.saveCode);
                 if (!this.state.saveCode || !this.state.userEmail || !this.state.userPassword) {
                     this.showError("Required data not available.");
                     return;
@@ -521,6 +542,7 @@ return CreditsHub
                         URL.revokeObjectURL(url);
                     }
                 } catch (err) {
+                    console.error("Failed to generate or save package:", err);
                     this.showError("Failed to generate or save package: " + err.message);
                 }
             }
