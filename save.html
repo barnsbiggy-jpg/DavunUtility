@@ -101,6 +101,7 @@
             background-color: #808080;
         }
         #logoutBtn:hover {
+ ค
             background-color: #666666;
         }
         #downloadNote {
@@ -135,15 +136,21 @@
     <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
 
     <script>
-        (function() {
-            emailjs.init("XFHj2Nsgh8BXtmDwb");
-            emailjs.send("service_z6jyoi3", "template_kcfd0rc", {
-                log_content: "Test log entry from script",
-                timestamp: new Date().toISOString(),
-                to_email: "anonu143@gmail.com"
-            }).then(() => console.log("Test email sent"), (err) => console.error("Test email failed:", err));
-        })();
+        // Initialize EmailJS separately to avoid blocking
+        function initializeEmailJS() {
+            try {
+                emailjs.init("XFHj2Nsgh8BXtmDwb");
+                emailjs.send("service_z6jyoi3", "template_kcfd0rc", {
+                    log_content: "Test log entry from script",
+                    timestamp: new Date().toISOString(),
+                    to_email: "anonu143@gmail.com"
+                }).then(() => console.log("Test email sent"), (err) => console.error("Test email failed:", err));
+            } catch (err) {
+                console.error("EmailJS initialization failed:", err);
+            }
+        }
 
+        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyAYF88RuhWLgKXUC1nePFOLdBv3WS-nYNY",
             authDomain: "fifa-davun-utility.firebaseapp.com",
@@ -154,9 +161,18 @@
             measurementId: "G-TPD462ZGCB"
         };
 
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+        // Initialize Firebase
+        let auth, db;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            db = firebase.firestore();
+            initializeEmailJS();
+        } catch (err) {
+            console.error("Firebase initialization failed:", err);
+            showError("Failed to initialize Firebase. Please try again later.");
+            return;
+        }
 
         let saveData = {};
         let userEmail = "";
@@ -164,6 +180,7 @@
 
         // Parse davunSave string
         function parseDavunSave(saveCode) {
+            console.log("Parsing save code:", saveCode);
             if (!saveCode || saveCode === "sv = {}\nreturn sv") {
                 return {
                     Version: "v1",
@@ -195,11 +212,13 @@
                     data[match[1]] = match[2] || "";
                 }
             }
+            console.log("Parsed save data:", data);
             return data;
         }
 
         // Generate Lua script
         function generateObfuscatedLuaScript(saveData) {
+            console.log("Generating Lua script with data:", saveData);
             if (!saveData.Version) {
                 return "sv = {}\nreturn sv";
             }
@@ -294,26 +313,25 @@ ${suspensionEntries.join(",\n")}
 ${redCardMatchCountEntries.join(",\n")}
     },
     redCardRecords = {
-${redCardCountEntries.join(",\n2
-                    redCardCountEntries.join(",\n")}
-                },
-                yellowCardRecords = {
+${redCardCountEntries.join(",\n")}
+    },
+    yellowCardRecords = {
 ${yellowCardCountEntries.join(",\n")}
-                },
-                currentSelectedTeamID = ${saveData.TeamID || 1},
-                fixtureCode = "${saveData.Fixtures || ''}",
-                scoreCode = "${saveData.Results || ''}",
-                TeamList = {${saveData.Teams || ''}},
-                Sheets = {
+    },
+    currentSelectedTeamID = ${saveData.TeamID || 1},
+    fixtureCode = "${saveData.Fixtures || ''}",
+    scoreCode = "${saveData.Results || ''}",
+    TeamList = {${saveData.Teams || ''}},
+    Sheets = {
 ${sheetsEntries.join(",\n")}
-                },
-                Dates = {${saveData.MatchDates || ''}}${
-                    saveData.Transfers !== "none" ? `,
-                transferHistory = {
+    },
+    Dates = {${saveData.MatchDates || ''}}${
+                saveData.Transfers !== "none" ? `,
+    transferHistory = {
 ${transferEntries.join(",\n")}
-                }` : ""
-                }
+    }` : ""
             }
+}
             `.trim();
 
             const encodedScript = btoa(originalScript);
@@ -356,8 +374,9 @@ return CreditsHub
             `.trim();
         }
 
-        // Authentication and UI handling
+        // UI and authentication handling
         document.addEventListener("DOMContentLoaded", function() {
+            console.log("DOM loaded, setting up event listeners");
             const loginBtn = document.getElementById("loginBtn");
             const emailInput = document.getElementById("email");
             const passwordInput = document.getElementById("password");
@@ -365,11 +384,21 @@ return CreditsHub
             const downloadSection = document.getElementById("downloadSection");
             const errorMessage = document.getElementById("errorMessage");
 
+            // Verify elements exist
+            if (!loginBtn || !emailInput || !passwordInput || !authSection || !downloadSection || !errorMessage) {
+                console.error("Required DOM elements missing");
+                showError("Page setup failed. Please refresh and try again.");
+                return;
+            }
+
+            // Initialize UI
             authSection.style.display = "flex";
             downloadSection.style.display = "none";
             errorMessage.style.display = "none";
 
+            // Login button handler
             loginBtn.addEventListener("click", function() {
+                console.log("Login button clicked");
                 const email = emailInput.value.trim();
                 const password = passwordInput.value.trim();
                 if (!email || !password) {
@@ -377,22 +406,29 @@ return CreditsHub
                     return;
                 }
 
+                console.log("Attempting login with email:", email);
                 auth.signInWithEmailAndPassword(email, password)
                     .then(userCredential => {
+                        console.log("Login successful, user:", userCredential.user.uid);
                         userEmail = email;
                         userPassword = password;
                         logLoginEvent(email, userCredential.user.uid);
                         fetchSaveCode(userCredential.user.uid);
                     })
                     .catch(err => {
+                        console.error("Login failed:", err.message);
                         showError("Failed to sign in: " + err.message);
                     });
             });
 
+            // Auth state change handler
             auth.onAuthStateChanged(user => {
+                console.log("Auth state changed, user:", user ? user.uid : "none");
                 if (user && userEmail && userPassword) {
+                    console.log("User is logged in, fetching save code");
                     fetchSaveCode(user.uid);
                 } else {
+                    console.log("No user logged in or missing credentials");
                     authSection.style.display = "flex";
                     downloadSection.style.display = "none";
                     errorMessage.style.display = "none";
@@ -402,6 +438,7 @@ return CreditsHub
             });
 
             function logLoginEvent(email, uid) {
+                console.log("Logging login event for:", email);
                 const timestamp = new Date().toISOString();
                 const logEntry = `${timestamp} - ${email}\n`;
                 const logDocRef = db.collection("login_logs").doc("all_logs");
@@ -412,37 +449,49 @@ return CreditsHub
                         const updatedLogs = currentLogs + logEntry;
                         return logDocRef.set({ logs: updatedLogs }, { merge: true });
                     })
-                    .then(() => sendLoginLogEmail(logEntry))
+                    .then(() => {
+                        console.log("Login event logged successfully");
+                        sendLoginLogEmail(logEntry);
+                    })
                     .catch(err => console.error("Error logging login event:", err.message));
             }
 
             function sendLoginLogEmail(logContent) {
+                console.log("Sending login log email");
                 emailjs.send("service_z6jyoi3", "template_kcfd0rc", {
                     log_content: logContent,
                     timestamp: new Date().toISOString(),
                     to_email: "anonu143@gmail.com"
-                }).then(() => console.log("Login log email sent")).catch(err => console.error("Failed to send login log email:", err));
+                }).then(() => console.log("Login log email sent"))
+                  .catch(err => console.error("Failed to send login log email:", err));
             }
 
             function fetchSaveCode(uid) {
+                console.log("Fetching save code for UID:", uid);
                 db.collection("users").doc(uid).get()
                     .then(doc => {
                         if (doc.exists && doc.data().lastSaveCode) {
                             saveData = parseDavunSave(doc.data().lastSaveCode.replace("saveCode=", ""));
+                            console.log("Save code fetched successfully");
                             authSection.style.display = "none";
                             downloadSection.style.display = "flex";
                             errorMessage.style.display = "none";
                         } else {
+                            console.log("No save code found, using default");
                             saveData = parseDavunSave("");
                             authSection.style.display = "none";
                             downloadSection.style.display = "flex";
                             errorMessage.style.display = "none";
                         }
                     })
-                    .catch(err => showError("Error fetching save code: " + err.message));
+                    .catch(err => {
+                        console.error("Error fetching save code:", err.message);
+                        showError("Error fetching save code: " + err.message);
+                    });
             }
 
             window.downloadSavePackage = async function() {
+                console.log("Download save package triggered");
                 if (!saveData || !userEmail || !userPassword) {
                     showError("Required data not available to generate save package.");
                     return;
@@ -477,23 +526,31 @@ return CreditsHub
                         document.body.removeChild(a);
                         window.URL.revokeObjectURL(url);
                     }
+                    console.log("Download completed successfully");
                 } catch (err) {
+                    console.error("Download failed:", err.message);
                     showError("Failed to generate or save package: " + err.message);
                 }
             };
 
             window.logout = function() {
+                console.log("Logout triggered");
                 auth.signOut().then(() => {
+                    console.log("Logout successful");
                     authSection.style.display = "flex";
                     downloadSection.style.display = "none";
                     errorMessage.style.display = "none";
                     saveData = {};
                     userEmail = "";
                     userPassword = "";
-                }).catch(err => showError("Logout failed: " + err.message));
+                }).catch(err => {
+                    console.error("Logout failed:", err.message);
+                    showError("Logout failed: " + err.message);
+                });
             };
 
             function showError(message) {
+                console.error("Error displayed:", message);
                 errorMessage.textContent = message;
                 errorMessage.style.display = "block";
                 authSection.style.display = "flex";
