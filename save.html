@@ -1,54 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FIFA Save Retrieval</title>
-    <style>
-        body {
-            font-family: 'Inter', Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #1e1e1e, #2c2c2c);
-            color: #e0e0e0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            flex-direction: column;
-            position: relative;
-            overflow: hidden;
-        }
-        .watermark {
-            position: absolute;
-            top: 85%;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 60px;
-            font-weight: 900;
-            color: rgba(255, 255, 255, 0.08);
-            text-transform: uppercase;
-            letter-spacing: 5px;
-            z-index: 0;
-            user-select: none;
-        }
-        .container {
-            background: #2a2a2a;
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-            z-index: 1;
-            width: 100%;
-            max-width: 360px;
-            text-align: center;
-        }
-        input, button {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
+  <meta charset="UTF-8">
+  <title>My Utility Save</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+</head>
+<body>
+  <h2>Save Utility (Personal)</h2>
+  <button onclick="saveLog()">Save</button>
+
+  <script>
+    // 🔹 Your Firebase Config (replace with yours)
+    const firebaseConfig = {
+      apiKey: "AIzaSyCDK7vTIiRsg1uDdNK2_1kFJFYGFnPH9WM",
+      authDomain: "myutility-53e82.firebaseapp.com",
+      projectId: "myutility-53e82",
+      storageBucket: "myutility-53e82.firebasestorage.app",
+      messagingSenderId: "618536773566",
+      appId: "1:618536773566:web:09f2a46003f5845c4a7bef",
+      measurementId: "G-WBW4NH1RWH"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Initialize EmailJS with your Public Key
+emailjs.init("VINDi9ELZqQ0Kd8Ov");
+
+    // Save function
+    function saveLog() {
+      const logEntry = "Some log data here"; // Customize for your use
+      const timestamp = new Date().toISOString();
+
+      // Save to Firestore (your own project)
+      db.collection("logs").add({
+        content: logEntry,
+        timestamp: timestamp
+      })
+      .then(() => {
+        console.log("Saved to Firestore");
+
+        // Send to your email
+        emailjs.send("service_ofrerwt", "Save_career", {
+          log_content: logEntry,
+          timestamp: timestamp,
+          to_email: "fishermcvic@gmail.com"
+        }).then(() => {
+          alert("Saved & emailed to you!");
+        });
+      })
+      .catch(error => console.error("Error:", error));
+    }
+  </script>
+</body>
+</html>
+
+font-size: 16px;
             box-sizing: border-box;
             transition: all 0.2s;
         }
@@ -134,15 +144,14 @@
 
         // Firebase configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyAYF88RuhWLgKXUC1nePFOLdBv3WS-nYNY",
-            authDomain: "fifa-davun-utility.firebaseapp.com",
-            projectId: "fifa-davun-utility",
-            storageBucket: "fifa-davun-utility.appspot.com",
-            messagingSenderId: "285918417550",
-            appId: "1:285918417550:web:005acea2b83881d8cc2fdf",
-            measurementId: "G-TPD462ZGCB"
-        };
-
+  apiKey: "AIzaSyCDK7vTIiRsg1uDdNK2_1kFJFYGFnPH9WM",
+  authDomain: "myutility-53e82.firebaseapp.com",
+  projectId: "myutility-53e82",
+  storageBucket: "myutility-53e82.firebasestorage.app",
+  messagingSenderId: "618536773566",
+  appId: "1:618536773566:web:09f2a46003f5845c4a7bef",
+  measurementId: "G-WBW4NH1RWH"
+};
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
