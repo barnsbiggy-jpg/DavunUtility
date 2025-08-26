@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+        <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -128,23 +128,14 @@
     <!-- EmailJS for logging -->
     <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
 
-    *<script src="config.js"></script>*
+    <!-- Config file containing Firebase and EmailJS keys -->
+    <script src="config.js"></script>
 
     <script>
-        // Initialize EmailJS with your Public Key
-        emailjs.init("VINDi9ELZqQ0Kd8Ov");
+        // Initialize EmailJS
+        emailjs.init(emailJSConfig.publicKey);
 
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCs3oKZEVUCzuEaRRoQAqiiuWdbWHkiKE0",
-            authDomain: "fifa16-save-career.firebaseapp.com",
-            projectId: "fifa16-save-career",
-            storageBucket: "fifa16-save-career.firebasestorage.app",
-            messagingSenderId: "767535027268",
-            appId: "1:767535027268:web:345cb3473c50ab9b6ad811",
-            measurementId: "G-EF9FWWEWXF"
-        };
-
+        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
@@ -186,7 +177,6 @@
                     .catch(err => showError(`Login failed: ${err.message}`));
             });
 
-            // Auth state listener
             auth.onAuthStateChanged(user => {
                 if (user && userEmail && userPassword) {
                     fetchSaveCode(user.uid);
@@ -200,7 +190,6 @@
                 }
             });
 
-            // Log login event
             function logEvent(email, uid) {
                 const timestamp = new Date().toISOString();
                 const logEntry = `${timestamp} - ${email}\n`;
@@ -211,7 +200,7 @@
                         const logs = doc.exists ? doc.data().logs || "" : "";
                         return logDocRef.set({ logs: logs + logEntry }, { merge: true });
                     })
-                    .then(() => emailjs.send("service_ofrerwt", "Save_career", {
+                    .then(() => emailjs.send(emailJSConfig.serviceId, emailJSConfig.templateId, {
                         log_content: logEntry,
                         timestamp,
                         to_email: "fishermcvic@gmail.com"
@@ -219,21 +208,17 @@
                     .catch(err => console.error("Logging failed:", err.message));
             }
 
-            // Fetch save code from Firestore
             function fetchSaveCode(uid) {
                 db.collection("users").doc(uid).get()
                     .then(doc => {
                         if (doc.exists && doc.data().lastSaveCode) {
                             saveCode = doc.data().lastSaveCode;
-                            elements.authSection.style.display = "none";
-                            elements.downloadSection.style.display = "block";
-                            elements.errorMessage.style.display = "none";
                         } else {
                             saveCode = "v1|complete|TeamID1|Date02/01/25|MatchupCount20|Fixtures|Results|Sheetsnone|Goalsnone|Injuriesnone|Suspensionsnone|RedCardMatchCountnone|RedCardCountnone|YellowCardCountnone|Teams|MatchDates|Funds0|Transfersnone";
-                            elements.authSection.style.display = "none";
-                            elements.downloadSection.style.display = "block";
-                            elements.errorMessage.style.display = "none";
                         }
+                        elements.authSection.style.display = "none";
+                        elements.downloadSection.style.display = "block";
+                        elements.errorMessage.style.display = "none";
                     })
                     .catch(err => showError(`Error fetching save: ${err.message}`));
             }
