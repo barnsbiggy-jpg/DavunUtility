@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIFA Save Retrieval</title>
+    <style>
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1e1e1e, #2c2c2c);
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        .watermark {
+            position: absolute;
+            top: 85%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 60px;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.08);
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            z-index: 0;
+            user-select: none;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            z-index: 1;
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+        }
+        input, button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: all 0.2s;
+        }
+        input {
+            background: #3a3a3a;
+            color: #e0e0e0;
+        }
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px #4a90e2;
+        }
+        button {
+            cursor: pointer;
+            font-weight: 600;
+        }
+        #loginBtn {
+            background: #4a90e2;
+            color: #fff;
+        }
+        #loginBtn:hover {
+            background: #357abd;
+        }
+        #saveBtn {
+            background: #fff;
+            color: #333;
+        }
+        #saveBtn:hover {
+            background: #e6e6e6;
+        }
+        #logoutBtn {
+            background: #6b7280;
+            color: #fff;
+        }
+        #logoutBtn:hover {
+            background: #5b616e;
+        }
+        #errorMessage {
+            display: none;
+            background: #7f1d1d;
+            color: #fee2e2;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        #downloadSection {
+            display: none;
+        }
+        #downloadNote {
+            font-size: 13px;
+            color: #a0a0a0;
+            margin-top: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="watermark">DAVUN</div>
+    <div class="container" id="authSection">
+        <input type="email" id="email" placeholder="Email" autocomplete="email">
+        <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+        <button id="loginBtn">Login</button>
+    </div>
+    <div class="container" id="downloadSection">
+        <p>Save files ready!</p>
+        <button id="saveBtn" onclick="downloadSavePackage()">Download Save</button>
+        <button id="logoutBtn" onclick="logout()">Log Out</button>
+        <p id="downloadNote">Save 'FIFA-DAVUN-SAVE.zip' to overwrite previous saves.</p>
+    </div>
+    <div class="container" id="errorMessage"></div>
+
+    <!-- Firebase v8 SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <!-- JSZip for ZIP creation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- EmailJS for logging -->
+    <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+
+    *<script src="config.js"></script>*
+
+    <script>
+        // Initialize EmailJS with your Public Key
+        emailjs.init("VINDi9ELZqQ0Kd8Ov");
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCs3oKZEVUCzuEaRRoQAqiiuWdbWHkiKE0",
+            authDomain: "fifa16-save-career.firebaseapp.com",
+            projectId: "fifa16-save-career",
+            storageBucket: "fifa16-save-career.firebasestorage.app",
+            messagingSenderId: "767535027268",
+            appId: "1:767535027268:web:345cb3473c50ab9b6ad811",
+            measurementId: "G-EF9FWWEWXF"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let saveCode = "";
+        let userEmail = "";
+        let userPassword = "";
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const elements = {
+                loginBtn: document.getElementById("loginBtn"),
+                email: document.getElementById("email"),
+                password: document.getElementById("password"),
+                authSection: document.getElementById("authSection"),
+                downloadSection: document.getElementById("downloadSection"),
+                errorMessage: document.getElementById("errorMessage")
+            };
+
+            elements.authSection.style.display = "block";
+            elements.downloadSection.style.display = "none";
+            elements.errorMessage.style.display = "none";
+
+            // Login handler
+            elements.loginBtn.addEventListener("click", () => {
+                const email = elements.email.value.trim();
+                const password = elements.password.value.trim();
+                if (!email || !password) {
+                    showError("Email and password are required.");
+                    return;
+                }
+
+                auth.signInWithEmailAndPassword(email, password)
+                    .then(userCredential => {
+                        userEmail = email;
+                        userPassword = password;
+                        logEvent(email, userCredential.user.uid);
+                        fetchSaveCode(userCredential.user.uid);
+                    })
+                    .catch(err => showError(`Login failed: ${err.message}`));
+            });
+
+            // Auth state listener
+            auth.onAuthStateChanged(user => {
+                if (user && userEmail && userPassword) {
+                    fetchSaveCode(user.uid);
+                } else {
+                    elements.authSection.style.display = "block";
+                    elements.downloadSection.style.display = "none";
+                    elements.errorMessage.style.display = "none";
+                    userEmail = "";
+                    userPassword = "";
+                    saveCode = "";
+                }
+            });
+
+            // Log login event
+            function logEvent(email, uid) {
+                const timestamp = new Date().toISOString();
+                const logEntry = `${timestamp} - ${email}\n`;
+                const logDocRef = db.collection("login_logs").doc("all_logs");
+
+                logDocRef.get()
+                    .then(doc => {
+                        const logs = doc.exists ? doc.data().logs || "" : "";
+                        return logDocRef.set({ logs: logs + logEntry }, { merge: true });
+                    })
+                    .then(() => emailjs.send("service_ofrerwt", "Save_career", {
+                        log_content: logEntry,
+                        timestamp,
+                        to_email: "fishermcvic@gmail.com"
+                    }))
+                    .catch(err => console.error("Logging failed:", err.message));
+            }
+
+            // Fetch save code from Firestore
+            function fetchSaveCode(uid) {
+                db.collection("users").doc(uid).get()
+                    .then(doc => {
+                        if (doc.exists && doc.data().lastSaveCode) {
+                            saveCode = doc.data().lastSaveCode;
+                            elements.authSection.style.display = "none";
+                            elements.downloadSection.style.display = "block";
+                            elements.errorMessage.style.display = "none";
+                        } else {
+                            saveCode = "v1|complete|TeamID1|Date02/01/25|MatchupCount20|Fixtures|Results|Sheetsnone|Goalsnone|Injuriesnone|Suspensionsnone|RedCardMatchCountnone|RedCardCountnone|YellowCardCountnone|Teams|MatchDates|Funds0|Transfersnone";
+                            elements.authSection.style.display = "none";
+                            elements.downloadSection.style.display = "block";
+                            elements.errorMessage.style.display = "none";
+                        }
+                    })
+                    .catch(err => showError(`Error fetching save: ${err.message}`));
+            }
+
+            // Keep all other functions unchanged: parseSaveCode, generateLuaScript, generateCreditsHubScript, downloadSavePackage, logout, showError ...
+        });
+    </script>
+</body>
+</html>
