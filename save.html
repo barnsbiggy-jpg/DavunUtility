@@ -64,14 +64,34 @@
       cursor: pointer;
       font-weight: 600;
     }
-    #loginBtn { background: #4a90e2; color: #fff; }
-    #loginBtn:hover { background: #357abd; }
-    #saveBtn { background: #fff; color: #333; }
-    #saveBtn:hover { background: #e6e6e6; }
-    #retrieveBtn { background: #22c55e; color: #fff; }
-    #retrieveBtn:hover { background: #16a34a; }
-    #logoutBtn { background: #6b7280; color: #fff; }
-    #logoutBtn:hover { background: #5b616e; }
+    #loginBtn {
+      background: #4a90e2;
+      color: #fff;
+    }
+    #loginBtn:hover {
+      background: #357abd;
+    }
+    #saveBtn {
+      background: #fff;
+      color: #333;
+    }
+    #saveBtn:hover {
+      background: #e6e6e6;
+    }
+    #retrieveBtn {
+      background: #22c55e;
+      color: #fff;
+    }
+    #retrieveBtn:hover {
+      background: #16a34a;
+    }
+    #logoutBtn {
+      background: #6b7280;
+      color: #fff;
+    }
+    #logoutBtn:hover {
+      background: #5b616e;
+    }
     #errorMessage {
       display: none;
       background: #7f1d1d;
@@ -81,7 +101,9 @@
       margin: 10px 0;
       font-size: 14px;
     }
-    #downloadSection { display: none; }
+    #downloadSection {
+      display: none;
+    }
     #downloadNote {
       font-size: 13px;
       color: #a0a0a0;
@@ -89,56 +111,28 @@
     }
   </style>
   <script>
+    // Hardcoded login credentials
     const AUTH_EMAIL = "fifasavecareer02@gmail.com";
-    // SHA-256 hash of "fifa123"
-    const AUTH_PASSWORD_HASH = "3d8e2d3cd9a5b3f033c0b43f7c7680b65f10e7b9c4c997e1c3c59ec44d10993f";
+    const AUTH_PASSWORD = "fifa123"; // Change to your own password
 
-    // Disable buttons on load
-    window.onload = function() {
-      document.getElementById("saveBtn").disabled = true;
-      document.getElementById("retrieveBtn").disabled = true;
-    }
-
-    async function hashPassword(password) {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(password);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    }
-
-    async function login() {
+    function login() {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
       const errorBox = document.getElementById("errorMessage");
 
-      if (!email || !password) {
-        errorBox.style.display = "block";
-        errorBox.innerText = "Email and password are required.";
-        return;
-      }
-
-      const hashedInput = await hashPassword(password);
-
-      if (email === AUTH_EMAIL && hashedInput === AUTH_PASSWORD_HASH) {
+      if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
         document.getElementById("authSection").style.display = "none";
         document.getElementById("downloadSection").style.display = "block";
         errorBox.style.display = "none";
-        enableDownloads();
       } else {
         errorBox.style.display = "block";
         errorBox.innerText = "Invalid email or password.";
       }
     }
 
-    function enableDownloads() {
-      document.getElementById("saveBtn").disabled = false;
-      document.getElementById("retrieveBtn").disabled = false;
-    }
-
     function downloadSavePackage() {
       const link = document.createElement("a");
-      link.href = "FIFA-DAVUN-SAVE.zip";
+      link.href = "FIFA-DAVUN-SAVE.zip"; 
       link.download = "FIFA-DAVUN-SAVE.zip";
       link.click();
     }
@@ -151,10 +145,6 @@
     function logout() {
       document.getElementById("authSection").style.display = "block";
       document.getElementById("downloadSection").style.display = "none";
-      document.getElementById("email").value = "";
-      document.getElementById("password").value = "";
-      document.getElementById("saveBtn").disabled = true;
-      document.getElementById("retrieveBtn").disabled = true;
     }
   </script>
 </head>
