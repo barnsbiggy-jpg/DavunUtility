@@ -2,169 +2,186 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FIFA Save Retrieval</title>
+  <title>FIFA Save Utility</title>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script type="module">
+    // Import Firebase modular SDK (v10.14.1)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCs3oKZEVUCzuEaRRoQAqiiuWdbWHkiKE0",
+      authDomain: "fifa16-save-career.firebaseapp.com",
+      projectId: "fifa16-save-career",
+      storageBucket: "fifa16-save-career.firebasestorage.app",
+      messagingSenderId: "767535027268",
+      appId: "1:767535027268:web:345cb3473c50ab9b6ad811",
+      measurementId: "G-EF9FWWEWXF"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // EmailJS setup
+    emailjs.init("rQd5zyduebGwE-WT0");
+
+    // Hardcoded credentials
+    const AUTH_EMAIL = "fifasavecareer02@gmail.com";
+    const AUTH_PASSWORD = "fifa123";
+
+    // Login function with hybrid authentication
+    window.login = function() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      // Hardcoded credentials check
+      if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
+        loginSuccess(email, "Hardcoded Auth");
+      } else {
+        // Try Firebase Auth
+        signInWithEmailAndPassword(auth, email, password)
+          .then(() => {
+            loginSuccess(email, "Firebase Auth");
+          })
+          .catch(error => {
+            document.getElementById("loginMsg").innerText = "Login failed: " + error.message;
+          });
+      }
+    };
+
+    // Forgot Password function
+    window.resetPassword = function() {
+      const email = document.getElementById("email").value;
+      const loginMsg = document.getElementById("loginMsg");
+
+      sendPasswordResetEmail(auth, email)
+        .then(() => {
+          loginMsg.innerText = "Password reset email sent! Check your inbox.";
+        })
+        .catch(error => {
+          loginMsg.innerText = `Error: ${error.message}`;
+        });
+    };
+
+    // Logout function
+    window.logout = function() {
+      auth.signOut()
+        .then(() => {
+          document.getElementById("loginBox").style.display = "block";
+          document.getElementById("downloadBox").style.display = "none";
+          document.getElementById("email").value = "";
+          document.getElementById("password").value = "";
+          document.getElementById("loginMsg").innerText = "";
+          document.getElementById("downloadMsg").innerText = "";
+        })
+        .catch(error => {
+          document.getElementById("downloadMsg").innerText = `Logout failed: ${error.message}`;
+        });
+    };
+
+    // On successful login
+    function loginSuccess(email, method) {
+      document.getElementById("loginBox").style.display = "none";
+      document.getElementById("downloadBox").style.display = "block";
+
+      // Timestamp
+      const timestamp = new Date().toLocaleString();
+      const logEntry = `User: ${email}\nMethod: ${method}\nTime: ${timestamp}`;
+
+      // Send log to EmailJS
+      emailjs.send("service_fifasavecareer", "template_fifasavecareer", {
+        log_content: logEntry,
+        timestamp,
+        to_email: "fifasavecareer02@gmail.com"
+      }).then(() => {
+        console.log("Log sent to EmailJS");
+      }).catch(err => {
+        console.error("EmailJS error:", err);
+      });
+    }
+
+    // Download Save
+    window.downloadSave = function() {
+      const link = document.createElement("a");
+      link.href = "FIFA-DAVUN-SAVE.zip";  // Make sure this file is in your repo root
+      link.download = "FIFA-DAVUN-SAVE.zip";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+  </script>
   <style>
     body {
-      font-family: 'Inter', Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background: linear-gradient(135deg, #1e1e1e, #2c2c2c);
-      color: #e0e0e0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      flex-direction: column;
-      position: relative;
-      overflow: hidden;
-    }
-    .watermark {
-      position: absolute;
-      top: 85%;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 60px;
-      font-weight: 900;
-      color: rgba(255, 255, 255, 0.08);
-      text-transform: uppercase;
-      letter-spacing: 5px;
-      z-index: 0;
-      user-select: none;
-    }
-    .container {
-      background: #2a2a2a;
-      padding: 24px;
-      border-radius: 12px;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-      z-index: 1;
-      width: 100%;
-      max-width: 360px;
+      font-family: Arial, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
       text-align: center;
+      padding: 50px;
     }
-    input, button {
-      width: 100%;
-      padding: 12px;
-      margin: 10px 0;
-      border: none;
-      border-radius: 6px;
-      font-size: 16px;
-      box-sizing: border-box;
-      transition: all 0.2s;
+    .login-box, .download-box {
+      background: #1a1a1a;
+      padding: 20px;
+      border-radius: 10px;
+      display: inline-block;
+      box-shadow: 0 0 15px rgba(0,0,0,0.6);
     }
     input {
-      background: #3a3a3a;
-      color: #e0e0e0;
-    }
-    input:focus {
-      outline: none;
-      box-shadow: 0 0 0 2px #4a90e2;
+      display: block;
+      margin: 10px auto;
+      padding: 10px;
+      width: 80%;
+      border: none;
+      border-radius: 5px;
     }
     button {
+      padding: 10px 20px;
+      border: none;
+      background: #28a745;
+      color: white;
+      font-weight: bold;
+      border-radius: 5px;
       cursor: pointer;
-      font-weight: 600;
+      margin: 10px;
     }
-    #loginBtn {
-      background: #4a90e2;
-      color: #fff;
+    button:hover {
+      background: #218838;
     }
-    #loginBtn:hover {
-      background: #357abd;
+    a {
+      color: #28a745;
+      text-decoration: none;
+      margin: 10px;
+      display: inline-block;
     }
-    #saveBtn {
-      background: #fff;
-      color: #333;
+    a:hover {
+      text-decoration: underline;
     }
-    #saveBtn:hover {
-      background: #e6e6e6;
-    }
-    #retrieveBtn {
-      background: #22c55e;
-      color: #fff;
-    }
-    #retrieveBtn:hover {
-      background: #16a34a;
-    }
-    #logoutBtn {
-      background: #6b7280;
-      color: #fff;
-    }
-    #logoutBtn:hover {
-      background: #5b616e;
-    }
-    #errorMessage {
-      display: none;
-      background: #7f1d1d;
-      color: #fee2e2;
-      padding: 12px;
-      border-radius: 6px;
-      margin: 10px 0;
-      font-size: 14px;
-    }
-    #downloadSection {
-      display: none;
-    }
-    #downloadNote {
-      font-size: 13px;
-      color: #a0a0a0;
-      margin-top: 12px;
+    p {
+      min-height: 20px;
     }
   </style>
-  <script>
-    // Hardcoded login credentials
-    const AUTH_EMAIL = "fifasavecareer02@gmail.com";
-    const AUTH_PASSWORD = "fifa123"; // Change to your own password
-
-    function login() {
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value.trim();
-      const errorBox = document.getElementById("errorMessage");
-
-      if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
-        document.getElementById("authSection").style.display = "none";
-        document.getElementById("downloadSection").style.display = "block";
-        errorBox.style.display = "none";
-      } else {
-        errorBox.style.display = "block";
-        errorBox.innerText = "Invalid email or password.";
-      }
-    }
-
-    function downloadSavePackage() {
-      const link = document.createElement("a");
-      link.href = "FIFA-DAVUN-SAVE.zip"; 
-      link.download = "FIFA-DAVUN-SAVE.zip";
-      link.click();
-    }
-
-    function retrieveSave() {
-      alert("Your FIFA save is ready to download again!");
-      downloadSavePackage();
-    }
-
-    function logout() {
-      document.getElementById("authSection").style.display = "block";
-      document.getElementById("downloadSection").style.display = "none";
-    }
-  </script>
 </head>
 <body>
-  <div class="watermark">FIFA SAVE</div>
+  <h1>FIFA Career Save Utility</h1>
 
-  <div class="container" id="authSection">
-    <input type="email" id="email" placeholder="Email" autocomplete="email">
-    <input type="password" id="password" placeholder="Password" autocomplete="current-password">
-    <button id="loginBtn" onclick="login()">Login</button>
+  <!-- LOGIN -->
+  <div id="loginBox" class="login-box">
+    <h2>Login</h2>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <button onclick="login()">Login</button>
+    <a href="#" onclick="resetPassword()">Forgot Password?</a>
+    <p id="loginMsg"></p>
   </div>
 
-  <div class="container" id="downloadSection">
-    <p>Save files ready!</p>
-    <button id="saveBtn" onclick="downloadSavePackage()">Download Save</button>
-    <button id="retrieveBtn" onclick="retrieveSave()">Retrieve Save</button>
-    <button id="logoutBtn" onclick="logout()">Log Out</button>
-    <p id="downloadNote">Save <b>FIFA-DAVUN-SAVE.zip</b> to overwrite previous saves.</p>
+  <!-- DOWNLOAD (hidden until login) -->
+  <div id="downloadBox" class="download-box" style="display:none;">
+    <h2>Welcome!</h2>
+    <p>You can now download your FIFA save:</p>
+    <button id="saveBtn" onclick="downloadSave()">⬇️ Download FIFA-DAVUN-SAVE.zip</button>
+    <button onclick="logout()">Logout</button>
+    <p id="downloadMsg"></p>
   </div>
-
-  <div class="container" id="errorMessage"></div>
 </body>
 </html>
