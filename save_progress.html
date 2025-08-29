@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FIFA Save Utility</title>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script type="module">
+    // Import Firebase modular SDK (v10.14.1)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { getStorage, ref, uploadBytes } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js";
+
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCs3oKZEVUCzuEaRRoQAqiiuWdbWHkiKE0",
+      authDomain: "fifa16-save-career.firebaseapp.com",
+      projectId: "fifa16-save-career",
+      storageBucket: "fifa16-save-career.firebasestorage.app",
+      messagingSenderId: "767535027268",
+      appId: "1:767535027268:web:345cb3473c50ab9b6ad811",
+      measurementId: "G-EF9FWWEWXF"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const storage = getStorage(app);
+
+    // EmailJS setup
+    emailjs.init("rQd5zyduebGwE-WT0");
+
+    // Hardcoded credentials
+    const AUTH_EMAIL = "fifasavecareer02@gmail.com";
+    const AUTH_PASSWORD = "fifa123";
+
+    // Login function with hybrid authentication
+    window.login = function() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
+        loginSuccess(email, "Hardcoded Auth");
+      } else {
+        signInWithEmailAndPassword(auth, email, password)
+          .then(() => {
+            loginSuccess(email, "Firebase Auth");
+          })
+          .catch(error => {
+            document.getElementById("loginMsg").innerText = "Login failed: " + error.message;
+          });
+      }
+    };
+
+    // Forgot Password function
+    window.resetPassword = function() {
+      const email = document.getElementById("email").value;
+      const loginMsg = document.getElementById("loginMsg");
+
+      sendPasswordResetEmail(auth, email)
+        .then(() => {
+          loginMsg.innerText = "Password reset email sent! Check your inbox.";
+        })
+        .catch(error => {
+          loginMsg.innerText = `Error: ${error.message}`;
+        });
+    };
+
+    // Logout function
+    window.logout = function() {
+      auth.signOut()
+        .then(() => {
+          document.getElementById("loginBox").style.display = "block";
+          document.getElementById("saveBox").style.display = "none";
+          document.getElementById("email").value = "";
+          document.getElementById("password").value = "";
+          document.getElementById("loginMsg").innerText = "";
+          document.getElementById("saveMsg").innerText = "";
+        })
+        .catch(error => {
+          document.getElementById("saveMsg").innerText = `Logout failed: ${error.message}`;
+        });
+    };
+
+    // On successful login
+    function loginSuccess(email, method) {
+      document.getElementById("loginBox").style.display = "none";
+      document.getElementById("saveBox").style.display = "block";
+
+      // Timestamp
+      const timestamp = new Date().toLocaleString();
+      const logEntry = `User: ${email}\nMethod: ${method}\nTime: ${timestamp}`;
+
+      // Send log to EmailJS
+      emailjs.send("service_fifasavecareer", "template_fifasavecareer", {
+        log_content: logEntry,
+        timestamp,
+        to_email: "fifasavecareer02@gmail.com"
+      }).then(() => {
+        console.log("Log sent to EmailJS");
+      }).catch(err => {
+        console.error("EmailJS error:", err);
+      });
+    }
+
+    // Save Progress
+    window.saveProgress = function() {
+      const fileInput = document.getElementById("saveFile");
+      const file = fileInput.files[0];
+      if (!file) {
+        document.getElementById("saveMsg").innerText = "Please select a save file to upload.";
+        return;
+      }
+
+      const storageRef = ref(storage, `saves/${file.name}_${new Date().getTime()}`);
+      uploadBytes(storageRef, file).then((snapshot) => {
+        document.getElementById("saveMsg").innerText = "Save uploaded successfully!";
+        // Optionally, log the upload to EmailJS
+        emailjs.send("service_fifasavecareer", "template_fifasavecareer", {
+          log_content: `User uploaded: ${file.name}\nTime: ${new Date().toLocaleString()}`,
+          timestamp: new Date().toLocaleString(),
+          to_email: "fifasavecareer02@gmail.com"
+        }).catch(err => console.error("EmailJS error:", err));
+      }).catch((error) => {
+        document.getElementById("saveMsg").innerText = "Upload failed: " + error.message;
+      });
+    };
+  </script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      text-align: center;
+      padding: 50px;
+    }
+    .login-box, .save-box {
+      background: #1a1a1a;
+      padding: 20px;
+      border-radius: 10px;
+      display: inline-block;
+      box-shadow: 0 0 15px rgba(0,0,0,0.6);
+    }
+    input {
+      display: block;
+      margin: 10px auto;
+      padding: 10px;
+      width: 80%;
+      border: none;
+      border-radius: 5px;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      background: #28a745;
+      color: white;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    button:hover {
+      background: #218838;
+    }
+    a {
+      color: #28a745;
+      text-decoration: none;
+      margin: 10px;
+      display: inline-block;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    p {
+      min-height: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>FIFA Career Save Utility</h1>
+
+  <!-- LOGIN -->
+  <div id="loginBox" class="login-box">
+    <h2>Login</h2>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <button onclick="login()">Login</button>
+    <a href="#" onclick="resetPassword()">Forgot Password?</a>
+    <p id="loginMsg"></p>
+  </div>
+
+  <!-- SAVE (hidden until login) -->
+  <div id="saveBox" class="save-box" style="display:none;">
+    <h2>Welcome!</h2>
+    <p>Upload your FIFA 16 save file to sync progress:</p>
+    <input type="file" id="saveFile" accept=".zip,.sav">
+    <button id="saveBtn" onclick="saveProgress()">⬆️ Upload Save</button>
+    <button onclick="logout()">Logout</button>
+    <p id="saveMsg"></p>
+  </div>
+</body>
+</html>
