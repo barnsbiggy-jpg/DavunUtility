@@ -5,10 +5,9 @@
   <title>FIFA Save Utility</title>
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
   <script type="module">
-    // Import Firebase modular SDK (v10.14.1)
+    // Import Firebase modular SDK (v10.14.1) for authentication
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-    import { getStorage, ref, uploadBytes } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js";
 
     // Firebase configuration
     const firebaseConfig = {
@@ -24,7 +23,6 @@
     // Initialize Firebase
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const storage = getStorage(app);
 
     // EmailJS setup
     emailjs.init("rQd5zyduebGwE-WT0");
@@ -32,6 +30,13 @@
     // Hardcoded credentials
     const AUTH_EMAIL = "fifasavecareer02@gmail.com";
     const AUTH_PASSWORD = "fifa123";
+
+    // GitHub API configuration (replace with your PAT)
+    const GITHUB_TOKEN = "YOUR_PERSONAL_ACCESS_TOKEN"; // Add your PAT here
+    const REPO_OWNER = "barnsbiggy-jpg";
+    const REPO_NAME = "DavunUtility";
+    const BASE_API_URL = "https://api.github.com/repos/";
+    const COMMIT_MESSAGE = "Upload FIFA-DAVUN-SAVE.zip via save utility";
 
     // Login function with hybrid authentication
     window.login = function() {
@@ -102,27 +107,46 @@
       });
     }
 
-    // Save Progress
+    // Save Progress using GitHub API
     window.saveProgress = function() {
       const fileInput = document.getElementById("saveFile");
       const file = fileInput.files[0];
-      if (!file) {
-        document.getElementById("saveMsg").innerText = "Please select a save file to upload.";
+      if (!file || file.name !== "FIFA-DAVUN-SAVE.zip") {
+        document.getElementById("saveMsg").innerText = "Please select a file named FIFA-DAVUN-SAVE.zip.";
         return;
       }
 
-      const storageRef = ref(storage, `saves/${file.name}_${new Date().getTime()}`);
-      uploadBytes(storageRef, file).then((snapshot) => {
-        document.getElementById("saveMsg").innerText = "Save uploaded successfully!";
-        // Optionally, log the upload to EmailJS
-        emailjs.send("service_fifasavecareer", "template_fifasavecareer", {
-          log_content: `User uploaded: ${file.name}\nTime: ${new Date().toLocaleString()}`,
-          timestamp: new Date().toLocaleString(),
-          to_email: "fifasavecareer02@gmail.com"
-        }).catch(err => console.error("EmailJS error:", err));
-      }).catch((error) => {
-        document.getElementById("saveMsg").innerText = "Upload failed: " + error.message;
-      });
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const content = event.target.result.split(',')[1]; // Extract base64 data
+        const uploadUrl = `${BASE_API_URL}${REPO_OWNER}/${REPO_NAME}/contents/FIFA-DAVUN-SAVE.zip?t=${new Date().getTime()}`; // Unique filename with timestamp
+
+        fetch(uploadUrl, {
+          method: 'PUT',
+          headers: {
+            Authorization: `token ${GITHUB_TOKEN}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: COMMIT_MESSAGE,
+            content: content, // Base64-encoded file content
+            branch: "main" // Adjust branch if needed
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById("saveMsg").innerText = "Save uploaded successfully to GitHub!";
+          emailjs.send("service_fifasavecareer", "template_fifasavecareer", {
+            log_content: `User uploaded: FIFA-DAVUN-SAVE.zip\nTime: ${new Date().toLocaleString()}`,
+            timestamp: new Date().toLocaleString(),
+            to_email: "fifasavecareer02@gmail.com"
+          }).catch(err => console.error("EmailJS error:", err));
+        })
+        .catch(error => {
+          document.getElementById("saveMsg").innerText = "Upload failed: " + error.message;
+        });
+      };
+      reader.readAsDataURL(file);
     };
   </script>
   <style>
@@ -191,8 +215,8 @@
   <!-- SAVE (hidden until login) -->
   <div id="saveBox" class="save-box" style="display:none;">
     <h2>Welcome!</h2>
-    <p>Upload your FIFA 16 save file to sync progress:</p>
-    <input type="file" id="saveFile" accept=".zip,.sav">
+    <p>Upload your FIFA-DAVUN-SAVE.zip to sync progress:</p>
+    <input type="file" id="saveFile" accept=".zip" onchange="if(this.files[0] && this.files[0].name !== 'FIFA-DAVUN-SAVE.zip') this.value = ''">
     <button id="saveBtn" onclick="saveProgress()">⬆️ Upload Save</button>
     <button onclick="logout()">Logout</button>
     <p id="saveMsg"></p>
